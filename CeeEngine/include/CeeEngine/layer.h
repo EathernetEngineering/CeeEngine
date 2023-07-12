@@ -1,10 +1,10 @@
 #ifndef CEE_ENGINE_LAYER_H
 #define CEE_ENGINE_LAYER_H
 
-#include <CeeEngine/CeeEnginePlatform.h>
-#include <CeeEngine/CeeEvent.h>
-#include <CeeEngine/CeeTimestep.h>
-#include <CeeEngine/CeeEngineMessageBus.h>
+#include <CeeEngine/platform.h>
+#include <CeeEngine/event.h>
+#include <CeeEngine/timestep.h>
+#include <CeeEngine/messageBus.h>
 
 #include <vector>
 
@@ -20,6 +20,7 @@ namespace cee {
 		virtual void OnDetach() = 0;
 
 		virtual void OnUpdate(Timestep t) = 0;
+		virtual void OnRender() = 0;
 		virtual void OnGui() = 0;
 
 		virtual void OnEnable() = 0;
@@ -41,6 +42,7 @@ namespace cee {
 
 	public:
 		LayerStack(MessageBus* messageBus);
+		~LayerStack() = default;
 
 		void PushLayer(Layer* layer);
 		void PopLayer(Layer* layer);

@@ -1,14 +1,15 @@
 #ifndef CEE_ENGINE_H
 #define CEE_ENGINE_H
 
-#include "CeeEngine/CeeEngineMessageBus.h"
-#include "CeeEngine/CeeEnginePlatform.h"
-#include "CeeEngine/CeeEvent.h"
-#include "CeeEngine/CeeEngineLayer.h"
-#include "CeeEngine/CeeEngineDebugLayer.h"
-#include "CeeEngine/CeeEngineWindow.h"
-#include "CeeEngine/CeeEngineRenderer.h"
-#include "CeeEngine/CeeEngineDebugMessenger.h"
+#include <CeeEngine/messageBus.h>
+#include <CeeEngine/platform.h>
+#include <CeeEngine/assert.h>
+#include <CeeEngine/event.h>
+#include <CeeEngine/layer.h>
+#include <CeeEngine/debugLayer.h>
+#include <CeeEngine/window.h>
+#include <CeeEngine/renderer.h>
+#include <CeeEngine/debugMessenger.h>
 
 #include <memory>
 #include <thread>
@@ -33,10 +34,13 @@ namespace cee {
 		bool m_Running;
 		LayerStack m_LayerStack;
 
-		std::unique_ptr<DebugLayer> m_DebugLayer;
+		DebugLayer* m_DebugLayer;
 
 		std::shared_ptr<Renderer> m_Renderer;
 		std::shared_ptr<Window> m_Window;
+
+		VertexBuffer m_VertexBuffer;
+		IndexBuffer m_IndexBuffer;
 
 		std::thread m_RenderThread;
 

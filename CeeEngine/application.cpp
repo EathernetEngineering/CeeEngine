@@ -1,7 +1,13 @@
-#include <CeeEngine/CeeEngine.h>
+#include <CeeEngine/application.h>
+#include <CeeEngine/input.h>
+#include <CeeEngine/renderer2D.h>
+#include <CeeEngine/renderer3D.h>
 
 #include <cstdio>
 #include <cstring>
+
+#include <chrono>
+#include <iostream>
 
 namespace cee {
 	Application* Application::s_Instance = nullptr;
@@ -9,14 +15,16 @@ namespace cee {
 	Application::Application()
 	 : m_LayerStack(&m_MessageBus) {
 		if (s_Instance) {
-			DebugMessenger::PostDebugMessage(CEE_ERROR_SEVERITY_ERROR, "Application already exits...\tExiting...\t");
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Application already exits...\tExiting...\t");
 			std::exit(EXIT_FAILURE);
 		}
 		s_Instance = this;
 
+		auto start = std::chrono::high_resolution_clock::now();
+
 #ifndef NDEBUG
-		m_DebugLayer = std::make_unique<DebugLayer>();
-		m_LayerStack.PushLayer(m_DebugLayer.get());
+		m_DebugLayer = new DebugLayer;
+		m_LayerStack.PushLayer(m_DebugLayer);
 #endif
 
 		WindowSpecification windowSpec = {};
@@ -24,21 +32,23 @@ namespace cee {
 		windowSpec.height = 720;
 		windowSpec.title = "CeeEngine Application";
 		m_Window = std::make_shared<Window>(&m_MessageBus, windowSpec);
-		RendererCapabilities rendererCapabilites = {};
-		rendererCapabilites.applicationName = "CeeEngine Editor";
-		rendererCapabilites.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-		rendererCapabilites.maxIndices = 10000;
-		rendererCapabilites.maxFramesInFlight = 3;
-		m_Renderer = std::make_shared<Renderer>(&m_MessageBus, rendererCapabilites, m_Window);
-		if (m_Renderer->Init() != 0) {
-			DebugMessenger::PostDebugMessage(CEE_ERROR_SEVERITY_ERROR,
-											 "Failed to initialise renderer... Aborting...");
-			std::exit(EXIT_FAILURE);
-		}
+		Input::Init(&m_MessageBus, m_Window);
+		Renderer3D::Init(&m_MessageBus, m_Window);
 		m_MessageBus.RegisterMessageHandler([this](Event& e){ (void)(this->OnEvent(e)); });
+
+		char message[FILENAME_MAX];
+		auto end = std::chrono::high_resolution_clock::now();
+		float duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0f;
+		sprintf(message, "Time to initialise engine: %.3fms", duration);
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
 	}
 
 	Application::~Application() {
+		for (auto& layer : m_LayerStack) {
+			layer->OnDetach();
+			delete layer;
+		}
+		Renderer3D::Shutdown();
 		s_Instance = nullptr;
 	}
 
@@ -60,7 +70,7 @@ namespace cee {
 
 	void Application::Run()
 	{
-		m_RenderThread = std::thread(&Renderer::Run, m_Renderer);
+		//m_RenderThread = std::thread(&Renderer::Run, m_Renderer);
 		Timestep ts, start, end;
 		GetTime(&start);
 		memset(&ts, 0, sizeof(Timestep));
@@ -77,11 +87,22 @@ namespace cee {
 			for (auto& layer : m_LayerStack) {
 				layer->OnUpdate(ts);
 			};
+
+			//m_Renderer->Clear({ 1.0f, 1.0f, 1.0f, 1.0f });
+			//m_Renderer->StartFrame();
+			//m_Renderer->Draw(m_IndexBuffer, m_VertexBuffer, 6);
+			//m_Renderer->EndFrame();
+
+			Renderer3D::BeginFrame();
+			for (auto& layer : m_LayerStack) {
+				layer->OnRender();;
+			};
+			Renderer3D::EndFrame();
+
 			Window::PollEvents();
 			m_MessageBus.DispatchEvents();
 			m_Running = !m_Window->ShouldClose();
 		}
-		m_Renderer->Stop();
-		m_RenderThread.join();
+		//m_RenderThread.join();
 	}
 }

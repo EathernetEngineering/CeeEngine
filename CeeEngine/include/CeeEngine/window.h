@@ -1,8 +1,8 @@
 #ifndef CEE_ENGINE_WINDOW_H
 #define CEE_ENGINE_WINDOW_H
 
-#include <CeeEngine/CeeEngineMessageBus.h>
-#include <CeeEngine/CeeEnginePlatform.h>
+#include <CeeEngine/messageBus.h>
+#include <CeeEngine/platform.h>
 
 #if defined(CEE_PLATFORM_LINUX)
 #include <xcb/xcb.h>

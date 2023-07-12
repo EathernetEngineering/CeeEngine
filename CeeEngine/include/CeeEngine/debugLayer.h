@@ -1,8 +1,8 @@
 #ifndef CEE_ENGINE_DEBUG_LAYER_H
 #define CEE_ENGINE_DEBUG_LAYER_H
 
-#include "CeeEngine/CeeEngineLayer.h"
-#include <CeeEngine/CeeEngineMessageBus.h>
+#include <CeeEngine/layer.h>
+#include <CeeEngine/messageBus.h>
 
 
 namespace cee {
@@ -15,6 +15,7 @@ namespace cee {
 		void OnDetach() override;
 
 		void OnUpdate(Timestep t) override;
+		void OnRender() override;
 		void OnGui() override;
 
 		void OnEnable() override;

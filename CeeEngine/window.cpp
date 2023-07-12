@@ -1,8 +1,10 @@
-#include "CeeEngine/CeeEngineWindow.h"
+#include <CeeEngine/window.h>
 
-#include "CeeEngine/CeeEngineDebugMessenger.h"
+#include <CeeEngine/debugMessenger.h>
+#include <CeeEngine/keyCodes.h>
 
 #include <cstdio>
+#include <map>
 
 namespace cee {
 	MessageBus* Window::s_MessageBus = NULL;
@@ -14,11 +16,11 @@ namespace cee {
 	 : m_MessageBus(messageBus), m_ShouldClose(true), m_Specification(spec), m_Wnd(0)
 	{
 		if (s_Connection == NULL) {
-			DebugMessenger::PostDebugMessage(CEE_ERROR_SEVERITY_INFO, "Opening connection to XCB server.");
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO, "Opening connection to XCB server.");
 			s_Connection = xcb_connect(NULL, NULL);
 
 			if (s_Connection == NULL) {
-				DebugMessenger::PostDebugMessage(CEE_ERROR_SEVERITY_ERROR, "Failed to establish connection to XCB server.");
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to establish connection to XCB server.");
 				return;
 			}
 		}
@@ -55,7 +57,7 @@ namespace cee {
 		if (error) {
 			char message[256];
 			sprintf(message, "XCB Error code from cookie \"WM_PROTOCOLS\": %hhu", error->error_code);
-			DebugMessenger::PostDebugMessage(CEE_ERROR_SEVERITY_DEBUG, message);
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
 			free(error);
 		}
 		error = NULL;
@@ -64,7 +66,7 @@ namespace cee {
 		if (error) {
 			char message[256];
 			sprintf(message, "XCB Error code from cookie \"WM_DELETE_WINDOW\": %hhu", error->error_code);
-			DebugMessenger::PostDebugMessage(CEE_ERROR_SEVERITY_ERROR, message);
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, message);
 			free(error);
 		}
 
@@ -94,7 +96,7 @@ namespace cee {
 		if (geometryReply) {
 			char message[512];
 			sprintf(message, "Actual window size: %hux%hu\tRequested window size: %ux%u", geometryReply->width, geometryReply->height, m_Specification.width, m_Specification.height);
-			DebugMessenger::PostDebugMessage(CEE_ERROR_SEVERITY_DEBUG, message);
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
 			m_Specification.width = geometryReply->width;
 			m_Specification.height = geometryReply->height;
 			free(geometryReply);
@@ -111,7 +113,7 @@ namespace cee {
 		s_WindowCount--;
 		if (s_WindowCount == 0) {
 			xcb_disconnect(s_Connection);
-			DebugMessenger::PostDebugMessage(CEE_ERROR_SEVERITY_INFO, "Closing connection to XCB server.");
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO, "Closing connection to XCB server.");
 			s_Connection = NULL;
 		}
 	}
@@ -178,6 +180,13 @@ namespace cee {
 			case XCB_KEY_PRESS:
 			{
 				KeyPressedEvent* keyEvent = new KeyPressedEvent(((xcb_key_press_event_t*)e)->detail);
+				s_MessageBus->PostMessage(keyEvent);
+			}
+				break;
+
+			case XCB_KEY_RELEASE:
+			{
+				KeyReleasedEvent* keyEvent = new KeyReleasedEvent(((xcb_key_press_event_t*)e)->detail);
 				s_MessageBus->PostMessage(keyEvent);
 			}
 				break;

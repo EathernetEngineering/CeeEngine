@@ -1,11 +1,12 @@
 #ifndef CEE_EVENT_H
 #define CEE_EVENT_H
 
+#include <cstdint>
 #include <string>
 #include <sstream>
 
-#include <CeeEngine/CeeEnginePlatform.h>
-#include <CeeEngine/CeeKeyCodes.h>
+#include <CeeEngine/platform.h>
+#include <CeeEngine/keyCodes.h>
 
 namespace cee {
 	enum class EventType {
@@ -315,6 +316,8 @@ namespace cee {
 		}
 		~KeyPressedEvent() = default;
 
+		KeyCode GetKeyCode() const { return m_Keycode; }
+
 		EventType CEECALL GetEventType() const override {
 			return EventType::KeyPressed;
 		}
@@ -349,6 +352,8 @@ namespace cee {
 		}
 		~KeyReleasedEvent() = default;
 
+		KeyCode GetKeyCode() const { return m_Keycode; }
+
 		EventType CEECALL GetEventType() const override {
 			return EventType::KeyReleased;
 		}
@@ -381,6 +386,8 @@ namespace cee {
 		{
 		}
 		~KeyTypedEvent() = default;
+
+		KeyCode GetKeyCode() const { return m_Keycode; }
 
 		EventType CEECALL GetEventType() const override {
 			return EventType::KeyTyped;
@@ -415,6 +422,8 @@ namespace cee {
 		}
 		~MouseButtonPressedEvent() = default;
 
+		MouseCode GetMouseCode() const { return m_MouseCode; }
+
 		EventType CEECALL GetEventType() const override {
 			return EventType::MouseButtonPressed;
 		}
@@ -437,7 +446,7 @@ namespace cee {
 			return EventType::MouseButtonPressed;
 		}
 	private:
-		KeyCode m_MouseCode;
+		MouseCode m_MouseCode;
 	};
 
 	class CEEAPI MouseButtonReleasedEvent : public Event {
@@ -447,6 +456,8 @@ namespace cee {
 		{
 		}
 		~MouseButtonReleasedEvent() = default;
+
+		MouseCode GetMouseCode() const { return m_MouseCode; }
 
 		EventType CEECALL GetEventType() const override {
 			return EventType::MouseButtonReleased;
@@ -470,7 +481,7 @@ namespace cee {
 			return EventType::MouseButtonReleased;
 		}
 	private:
-		KeyCode m_MouseCode;
+		MouseCode m_MouseCode;
 	};
 
 	class CEEAPI MouseMoveEvent : public Event {

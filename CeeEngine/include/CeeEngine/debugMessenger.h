@@ -3,7 +3,7 @@
 
 #include <functional>
 
-#include "vulkan/vulkan.h"
+#include <vulkan/vulkan.h>
 
 namespace cee {
 
@@ -13,13 +13,14 @@ namespace cee {
 	class Renderer;
 	class MessageBus;
 	class DebugLayer;
+	class Buffer;
 	/* end forward declerations. */
 
 	enum CeeErrorSeverity {
-		CEE_ERROR_SEVERITY_DEBUG    = 1 << 0,
-		CEE_ERROR_SEVERITY_INFO     = 1 << 1,
-		CEE_ERROR_SEVERITY_WARNING  = 1 << 2,
-		CEE_ERROR_SEVERITY_ERROR    = 1 << 3
+		ERROR_SEVERITY_DEBUG    = 1 << 0,
+		ERROR_SEVERITY_INFO     = 1 << 1,
+		ERROR_SEVERITY_WARNING  = 1 << 2,
+		ERROR_SEVERITY_ERROR    = 1 << 3
 	};
 
 	typedef void(*PFN_CeeDebugMessengerCallback)(CeeErrorSeverity, const char*, void*);
@@ -38,18 +39,13 @@ namespace cee {
 		static CeeErrorSeverity s_ReportErrorLevels;
 
 	private:
-		friend Application;
-		friend Window;
-		friend Renderer;
-		friend MessageBus;
-		friend DebugLayer;
 
 		friend VkBool32 vulkanDebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 													 VkDebugUtilsMessageTypeFlagsEXT messageType,
 													 const VkDebugUtilsMessengerCallbackDataEXT* messageData,
 													 void* userData);
 
-	private:
+	public:
 		static void PostDebugMessage(CeeErrorSeverity serverity, const char* message);
 	};
 }

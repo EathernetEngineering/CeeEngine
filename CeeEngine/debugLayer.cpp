@@ -1,6 +1,7 @@
-#include "CeeEngine/CeeEngineDebugLayer.h"
+#include <CeeEngine/debugLayer.h>
 
-#include "CeeEngine/CeeEngineDebugMessenger.h"
+#include <CeeEngine/debugMessenger.h>
+#include <iostream>
 
 namespace cee {
 	DebugLayer::DebugLayer() {
@@ -12,15 +13,21 @@ namespace cee {
 	}
 
 	void DebugLayer::OnAttach() {
-
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO,
+										 "Debug layer attached.");
 	}
 
 	void DebugLayer::OnDetach() {
-
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO,
+										 "Debug layer detached.");
 	}
 
 	void DebugLayer::OnUpdate(Timestep t) {
 		(void)t;
+	}
+
+	void DebugLayer::OnRender() {
+
 	}
 
 	void DebugLayer::OnGui() {

@@ -1,6 +1,8 @@
 #ifndef CEE_ENGINE_KEY_CODES_H
 #define CEE_ENGINE_KEY_CODES_H
 
+#include <cstdint>
+
 namespace cee {
 	using KeyCode = uint16_t;
 	using MouseCode = uint16_t;
@@ -36,7 +38,7 @@ namespace cee {
 			G = 71,
 			H = 72,
 			I = 73,
-			j = 74,
+			J = 74,
 			K = 75,
 			L = 76,
 			M = 77,

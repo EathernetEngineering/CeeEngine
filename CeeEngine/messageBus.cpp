@@ -1,6 +1,6 @@
-#include "CeeEngine/CeeEngineMessageBus.h"
+#include <CeeEngine/messageBus.h>
 
-#include "CeeEngine/CeeEngineDebugMessenger.h"
+#include <CeeEngine/debugMessenger.h>
 
 namespace cee {
 	MessageBus::MessageBus() {
@@ -26,7 +26,10 @@ namespace cee {
 	}
 
 	void MessageBus::PostMessageImmedate(Event* e) {
-		m_MessageQueue.push_front(e);
+		for (auto& handler : m_Handlers) {
+			Event& event = *e;
+			handler(event);
+		}
 	}
 
 	void MessageBus::RegisterMessageHandler(std::function<void(Event&)> handler) {

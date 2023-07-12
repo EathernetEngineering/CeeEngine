@@ -1,5 +1,5 @@
-#include <CeeEngine/CeeTimestep.h>
-#include <CeeEngine/CeeEnginePlatform.h>
+#include <CeeEngine/timestep.h>
+#include <CeeEngine/platform.h>
 
 #if defined(CEE_PLATFORM_WINDOWS)
 #include <Windows.h>

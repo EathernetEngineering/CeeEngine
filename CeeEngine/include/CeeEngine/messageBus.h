@@ -5,7 +5,8 @@
 #include <list>
 #include <functional>
 #include <mutex>
-#include <CeeEngine/CeeEvent.h>
+
+#include <CeeEngine/event.h>
 
 namespace cee {
 	class MessageBus {

@@ -1,4 +1,4 @@
-#include "CeeEngine/CeeEngineDebugMessenger.h"
+#include <CeeEngine/debugMessenger.h>
 
 #include <cstdio>
 
@@ -19,25 +19,25 @@ namespace cee {
 	void DebugMessenger::DefaultHandler(CeeErrorSeverity severity, const char* message, void*)
 	{
 		switch (severity) {
-			case CEE_ERROR_SEVERITY_DEBUG:
-				fprintf(stderr, "[DEBUG] %s\n", message);
+			case ERROR_SEVERITY_DEBUG:
+				fprintf(stderr, "\e[0;90m[DEBUG] %s\e[0m\n", message);
 				break;
 
-			case CEE_ERROR_SEVERITY_INFO:
-				fprintf(stderr, "[INFO]  %s\n", message);
+			case ERROR_SEVERITY_INFO:
+				fprintf(stderr, "\e[0;32m[INFO]  %s\e[0m\n", message);
 				break;
 
-			case CEE_ERROR_SEVERITY_WARNING:
-				fprintf(stderr, "[WARN]  %s\n", message);
+			case ERROR_SEVERITY_WARNING:
+				fprintf(stderr, "\e[0;33m[WARN]  %s\e[0m\n", message);
 				break;
 
-			case CEE_ERROR_SEVERITY_ERROR:
-				fprintf(stderr, "[ERROR] %s\n", message);
+			case ERROR_SEVERITY_ERROR:
+				fprintf(stderr, "\e[0;31m[ERROR] %s\e[0m\n", message);
 				break;
 
 			default:
-				fprintf(stderr, "[WARN]  An unknown error has occured.\n");
-				fprintf(stderr, "[ERROR] %s\n", message);
+				fprintf(stderr, "\e[0;33m[WARN]  An unknown error has occured.\e[0m\n");
+				fprintf(stderr, "\e[0;31m[ERROR] %s\e[0m\n", message);
 		}
 	}
 
