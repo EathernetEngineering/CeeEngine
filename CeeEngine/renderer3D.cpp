@@ -169,6 +169,17 @@ namespace cee {
 		s_IndexBuffer = s_Renderer->CreateIndexBuffer(sizeof(uint32_t) * s_RendererCapabilities.maxIndices);
 		s_VertexBuffer = s_Renderer->CreateVertexBuffer(sizeof(Vertex3D) * maxVertices);
 
+		CubeMapBuffer cubeMapBuffer({
+			"/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/textures/elyvisions/skype_ft.png",
+			"/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/textures/elyvisions/skype_bk.png",
+			"/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/textures/elyvisions/skype_up.png",
+			"/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/textures/elyvisions/skype_dn.png",
+			"/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/textures/elyvisions/skype_rt.png",
+			"/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/textures/elyvisions/skype_lf.png"
+		});
+
+		s_Renderer->UpdateSkybox(cubeMapBuffer);
+
 		s_Initialized = true;
 	}
 
@@ -221,16 +232,7 @@ namespace cee {
 			vertices[i].texCoords = CubeTexCoords[i];
 			vertices[i].texIndex = CubeTexIndices[i];
 		}
-		// for (uint32_t i = 0; i < vertices.size(); i+=4) {
-		// 	vertices[i].color.r = std::generate_canonical<float, 10>(gen);
-		// 	vertices[i].color.g = std::generate_canonical<float, 10>(gen);
-		// 	vertices[i].color.b = std::generate_canonical<float, 10>(gen);
-		// 	vertices[i].color.a = 1.0f;
-  //
-		// 	vertices[i + 1].color = vertices[i].color;
-		// 	vertices[i + 2].color = vertices[i].color;
-		// 	vertices[i + 3].color = vertices[i].color;
-		// }
+
 		s_VertexStagingBuffer.SetData(vertices.size() * sizeof(Vertex3D), s_VertexOffset * sizeof(Vertex3D), vertices.data());
 		s_IndexStagingBuffer.SetData(36 * sizeof(uint32_t), s_IndexOffset * sizeof(uint32_t), CubeIndices);
 		s_VertexOffset += 24;

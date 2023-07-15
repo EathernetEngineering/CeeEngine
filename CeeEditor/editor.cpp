@@ -52,6 +52,8 @@ void GameLayer::OnDetach()
 void GameLayer::OnUpdate(cee::Timestep t)
 {
 	(void)t;
+	m_Camera.Rotate(M_PI_4 * (float(t.nsec)/1000000000.0f), { -1.0f, 0.0f, 0.0f });
+	cee::Renderer3D::UpdateCamera(m_Camera);
 }
 
 void GameLayer::OnRender() {
@@ -73,8 +75,6 @@ void GameLayer::OnRender() {
 							  { -1.0, -1.0, 1.0f },
 							  { 0.5f, 0.5f, 0.5f },
 							  { 1.0f, 1.0f, 1.0f, 1.0f });
-
-	cee::Renderer3D::UpdateCamera(m_Camera);
 }
 
 void GameLayer::OnGui()

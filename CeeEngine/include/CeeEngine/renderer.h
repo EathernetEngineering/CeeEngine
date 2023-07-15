@@ -26,9 +26,49 @@
 
 namespace cee {
 	enum ImageFormat {
-		IMAGE_FORMAT_UNKNOWN  = 0,
-		IMAGE_FORMAT_R8G8B8A8 = 1,
-		IMAGE_FORMAT_DEPTH    = 2
+		IMAGE_FORMAT_UNDEFINED           = 0,
+
+		IMAGE_FORMAT_R8_SRGB             = 1,
+		IMAGE_FORMAT_R8G8_SRGB           = 2,
+		IMAGE_FORMAT_R8G8B8_SRGB         = 3,
+		IMAGE_FORMAT_R8G8B8A8_SRGB       = 4,
+
+		IMAGE_FORMAT_R8_UNORM            = 5,
+		IMAGE_FORMAT_R8G8_UNORM          = 6,
+		IMAGE_FORMAT_R8G8B8_UNORM        = 7,
+		IMAGE_FORMAT_R8G8B8A8_UNORM      = 8,
+
+		IMAGE_FORMAT_R8_UINT             = 9,
+		IMAGE_FORMAT_R8G8_UINT           = 10,
+		IMAGE_FORMAT_R8G8B8_UINT         = 11,
+		IMAGE_FORMAT_R8G8B8A8_UINT       = 12,
+
+		IMAGE_FORMAT_R16_SFLOAT          = 13,
+		IMAGE_FORMAT_R16G16_SFLOAT       = 14,
+		IMAGE_FORMAT_R16G16B16_SFLOAT    = 15,
+		IMAGE_FORMAT_R16G16B16A16_SFLOAT = 16,
+
+		IMAGE_FORMAT_R16_UNORM           = 17,
+		IMAGE_FORMAT_R16G16_UNORM        = 18,
+		IMAGE_FORMAT_R16G16B16_UNORM     = 19,
+		IMAGE_FORMAT_R16G16B16A16_UNORM  = 20,
+
+		IMAGE_FORMAT_R16_UINT            = 21,
+		IMAGE_FORMAT_R16G16_UINT         = 22,
+		IMAGE_FORMAT_R16G16B16_UINT      = 23,
+		IMAGE_FORMAT_R16G16B16A16_UINT   = 24,
+
+		IMAGE_FORMAT_R32_SFLOAT          = 25,
+		IMAGE_FORMAT_R32G32_SFLOAT       = 26,
+		IMAGE_FORMAT_R32G32B32_SFLOAT    = 27,
+		IMAGE_FORMAT_R32G32B32A32_SFLOAT = 28,
+
+		IMAGE_FORMAT_R32_UINT            = 29,
+		IMAGE_FORMAT_R32G32_UINT         = 30,
+		IMAGE_FORMAT_R32G32B32_UINT      = 31,
+		IMAGE_FORMAT_R32G32B32A32_UINT   = 32,
+
+		IMAGE_FORMAT_DEPTH    = 128
 	};
 
 	enum RendererMode {
@@ -144,6 +184,8 @@ namespace cee {
 		ImageBuffer& operator=(const ImageBuffer&) = delete;
 		ImageBuffer& operator=(ImageBuffer&& other);
 
+		void Clear(glm::vec4 clearColor);
+
 	private:
 		void TransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout);
 
@@ -158,6 +200,38 @@ namespace cee {
 		VkImage m_Image;
 		VkImageView m_ImageView;
 		VkDeviceMemory m_DeviceMemory;
+
+		VkImageLayout m_Layout;
+
+		friend Renderer;
+		friend StagingBuffer;
+	};
+
+	class CubeMapBuffer {
+	public:
+		CubeMapBuffer();
+		CubeMapBuffer(uint32_t width, uint32_t height);
+		CubeMapBuffer(std::vector<std::string> filenames);
+		CubeMapBuffer(const CubeMapBuffer&) = delete;
+		CubeMapBuffer(CubeMapBuffer&& other);
+		~CubeMapBuffer();
+
+		CubeMapBuffer& operator=(const CubeMapBuffer&) = delete;
+		CubeMapBuffer& operator=(CubeMapBuffer&& other);
+
+		void Clear(glm::vec4 clearColor);
+
+	private:
+		void TransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout);
+
+	private:
+		bool m_Initialized;
+
+		size_t m_Size;
+		VkExtent3D m_Extent;
+		VkImage m_Image;
+		VkDeviceMemory m_DeviceMemory;
+		VkImageView m_ImageView;
 
 		VkImageLayout m_Layout;
 
@@ -192,11 +266,13 @@ namespace cee {
 		int TransferData(IndexBuffer& indexBuffer, size_t srcOffset, size_t dstOffset, size_t size);
 		int TransferData(UniformBuffer& uniformBuffer, size_t srcOffset, size_t dstOffset, size_t size);
 		int TransferData(ImageBuffer& imageBuffer, size_t srcOffset, size_t dstOffset, uint32_t width, uint32_t height);
+		int TransferData(CubeMapBuffer& imageBuffer, size_t srcOffset);
 
 		int TransferDataImmediate(VertexBuffer& vertexBuffer, size_t srcOffset, size_t dstOffset, size_t size);
 		int TransferDataImmediate(IndexBuffer& indexBuffer, size_t srcOffset, size_t dstOffset, size_t size);
 		int TransferDataImmediate(UniformBuffer& uniformBuffer, size_t srcOffset, size_t dstOffset, size_t size);
 		int TransferDataImmediate(ImageBuffer& imageBuffer, size_t srcOffset, size_t dstOffset, uint32_t width, uint32_t height);
+		int TransferDataImmediate(CubeMapBuffer& imageBuffer, size_t srcOffset);
 
 	private:
 		bool m_Initialized;
@@ -233,16 +309,23 @@ namespace cee {
 		int Draw(const IndexBuffer& indexBuffer, const VertexBuffer& vertexBuffer, uint32_t indexCount);
 
 		int UpdateCamera(Camera& camera);
+		void UpdateSkybox(CubeMapBuffer& newSkybox);
 
 		static Renderer* Get() { return s_Instance; }
 
 		VkDevice GetDevice() { return m_Device; }
+		VkPhysicalDeviceMemoryProperties GetDeviceMemoryProperties() const {
+			return m_PhysicalDeviceMemoryProperties;
+		}
+		VkFormat GetDepthFormat() const { return m_DepthFormat; }
+		VkFormat GetSwapchainFormat() const { return m_SwapchainImageFormat; }
+		VkExtent2D GetSwapchainExtent() const { return m_SwapchainExtent; }
 
 	private:
 		void InvalidateSwapchain();
 		void InvalidatePipeline();
 
-	private:
+	public:
 		enum CommandQueueTypeBits
 		{
 			QUEUE_UNKNOWN  = 0,
@@ -259,7 +342,13 @@ namespace cee {
 			std::vector<std::pair<VkPipelineStageFlags, VkSemaphore>> waitSemaphores;
 		};
 
-	private:
+		struct UsedCommandBuffer {
+			VkCommandBuffer commandBuffer;
+			CommandQueueType queueType;
+			uint32_t age;
+		};
+
+	public:
 		VkResult ImmediateSubmit(std::function<void(VkCommandBuffer&)> fn, CommandQueueType queueType);
 		VkResult QueueSubmit(std::function<void(VkCommandBuffer&)> fn, CommandQueueType queueType);
 		VkResult FlushQueuedSubmits();
@@ -281,9 +370,15 @@ namespace cee {
 										  const std::vector<VkFormat>& candidates,
 										  VkImageTiling tilingMode,
 										  VkFormatFeatureFlags features);
+		VkResult CreateImageObjects(VkImage* image, VkDeviceMemory* deviceMemory, VkImageView* imageView,
+									VkFormat format, VkImageUsageFlags usage,
+									uint32_t* width, uint32_t* height, size_t* size,
+									uint32_t mipLevels, uint32_t layers);
 		int TransitionImageLayout(VkImage image,
 								  VkImageLayout oldLayout,
 								  VkImageLayout newLayout);
+
+	private:
 		static VkBool32 VulkanDebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 													 VkDebugUtilsMessageTypeFlagsEXT messageType,
 													 const VkDebugUtilsMessengerCallbackDataEXT* messageData,
@@ -316,6 +411,7 @@ namespace cee {
 		VkInstance m_Instance;
 		VkPhysicalDevice m_PhysicalDevice;
 		VkPhysicalDeviceProperties m_PhysicalDeviceProperties;
+		VkPhysicalDeviceMemoryProperties m_PhysicalDeviceMemoryProperties;
 		VkDevice m_Device;
 
 		VkSurfaceKHR m_Surface;
@@ -371,10 +467,12 @@ namespace cee {
 
 		VkCommandPool m_GraphicsCmdPool;
 		std::vector<VkCommandBuffer> m_DrawCmdBuffers;
+		std::vector<VkCommandBuffer> m_GeomertyDrawCmdBuffers;
 
 		VkCommandPool m_TransferCmdPool;
 
 		std::vector<std::vector<BakedCommandBuffer>> m_QueuedSubmits;
+		std::vector<UsedCommandBuffer> m_CommandBufferDeletionQueue;
 
 		std::vector<VkSemaphore> m_ImageAvailableSemaphores;
 		std::vector<VkSemaphore> m_RenderFinishedSemaphores;
@@ -384,6 +482,17 @@ namespace cee {
 		glm::vec4 m_ClearColor;
 		ImageBuffer m_ImageBuffer;
 		UniformBuffer m_UniformBuffer;
+
+		CubeMapBuffer m_Skybox;
+		VkDescriptorPool m_SkyboxDesriptorPool;
+		VkDescriptorSetLayout m_SkyboxDescriptorSetLayout;
+		std::vector<VkDescriptorSet> m_SkyboxDescriptorSets;
+		VkSampler m_SkyboxSampler;
+		VkPipelineLayout m_SkyboxPipelineLayout;
+		VkPipeline m_SkyboxPipeline;
+		std::vector<VkCommandBuffer> m_SkyboxDrawCommandBuffers;
+		VertexBuffer m_SkyboxVertexBuffer;
+		UniformBuffer m_SkyboxUniformBuffer;
 
 		uint32_t m_ImageIndex;
 		uint32_t m_FrameIndex;

@@ -13,6 +13,7 @@
 #include <exception>
 
 #include <fstream>
+#include <filesystem>
 
 #include <stb/stb_image.h>
 
@@ -40,6 +41,79 @@ enum PipelineFlagsBits
 typedef uint32_t PipelineFlags;
 
 namespace cee {
+	VkFormat CeeFormatToVkFormat(::cee::ImageFormat foramt) {
+		switch (foramt) {
+			case IMAGE_FORMAT_R8_SRGB:
+				return VK_FORMAT_R8_SRGB;
+			case IMAGE_FORMAT_R8G8_SRGB:
+				return VK_FORMAT_R8G8_SRGB;
+			case IMAGE_FORMAT_R8G8B8_SRGB:
+				return VK_FORMAT_R8G8B8_SRGB;
+			case IMAGE_FORMAT_R8G8B8A8_SRGB:
+				return VK_FORMAT_R8G8B8A8_SRGB;
+			case IMAGE_FORMAT_R8_UNORM:
+				return VK_FORMAT_R8_UNORM;
+			case IMAGE_FORMAT_R8G8_UNORM:
+				return VK_FORMAT_R8G8_UNORM;
+			case IMAGE_FORMAT_R8G8B8_UNORM:
+				return VK_FORMAT_R8G8B8_UNORM;
+			case IMAGE_FORMAT_R8G8B8A8_UNORM:
+				return VK_FORMAT_R8G8B8A8_UNORM;
+			case IMAGE_FORMAT_R8_UINT:
+				return VK_FORMAT_R8_UINT;
+			case IMAGE_FORMAT_R8G8_UINT:
+				return VK_FORMAT_R8G8_UINT;
+			case IMAGE_FORMAT_R8G8B8_UINT:
+				return VK_FORMAT_R8G8B8_UINT;
+			case IMAGE_FORMAT_R8G8B8A8_UINT:
+				return VK_FORMAT_R8G8B8A8_UINT;
+			case IMAGE_FORMAT_R16_SFLOAT:
+				return VK_FORMAT_R16_SFLOAT;
+			case IMAGE_FORMAT_R16G16_SFLOAT:
+				return VK_FORMAT_R16G16_SFLOAT;
+			case IMAGE_FORMAT_R16G16B16_SFLOAT:
+				return VK_FORMAT_R16G16B16_SFLOAT;
+			case IMAGE_FORMAT_R16G16B16A16_SFLOAT:
+				return VK_FORMAT_R16G16B16A16_SFLOAT;
+			case IMAGE_FORMAT_R16_UNORM:
+				return VK_FORMAT_R16_UNORM;
+			case IMAGE_FORMAT_R16G16_UNORM:
+				return VK_FORMAT_R16G16_UNORM;
+			case IMAGE_FORMAT_R16G16B16_UNORM:
+				return VK_FORMAT_R16G16B16_UNORM;
+			case IMAGE_FORMAT_R16G16B16A16_UNORM:
+				return VK_FORMAT_R16G16B16A16_UNORM;
+			case IMAGE_FORMAT_R16_UINT:
+				return VK_FORMAT_R16_UINT;
+			case IMAGE_FORMAT_R16G16_UINT:
+				return VK_FORMAT_R16G16_UINT;
+			case IMAGE_FORMAT_R16G16B16_UINT:
+				return VK_FORMAT_R16G16B16_UINT;
+			case IMAGE_FORMAT_R16G16B16A16_UINT:
+				return VK_FORMAT_R16G16B16A16_UINT;
+			case IMAGE_FORMAT_R32_SFLOAT:
+				return VK_FORMAT_R32_SFLOAT;
+			case IMAGE_FORMAT_R32G32_SFLOAT:
+				return VK_FORMAT_R32G32_SFLOAT;
+			case IMAGE_FORMAT_R32G32B32_SFLOAT:
+				return VK_FORMAT_R32G32B32_SFLOAT;
+			case IMAGE_FORMAT_R32G32B32A32_SFLOAT:
+				return VK_FORMAT_R32G32B32A32_SFLOAT;
+			case IMAGE_FORMAT_R32_UINT:
+				return VK_FORMAT_R32_UINT;
+			case IMAGE_FORMAT_R32G32_UINT:
+				return VK_FORMAT_R32G32_UINT;
+			case IMAGE_FORMAT_R32G32B32_UINT:
+				return VK_FORMAT_R32G32B32_UINT;
+			case IMAGE_FORMAT_R32G32B32A32_UINT:
+				return VK_FORMAT_R32G32B32A32_UINT;
+			case IMAGE_FORMAT_DEPTH:
+				return Renderer::Get()->GetDepthFormat();
+			default:
+				return VK_FORMAT_UNDEFINED;
+		}
+	}
+
 	VkBool32 Renderer::VulkanDebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 										VkDebugUtilsMessageTypeFlagsEXT messageType,
 										const VkDebugUtilsMessengerCallbackDataEXT* messageData,
@@ -260,6 +334,24 @@ namespace cee {
 		return *this;
 	}
 
+	void ImageBuffer::Clear(glm::vec4 clearColor) {
+		Renderer::Get()->ImmediateSubmit([this, clearColor](VkCommandBuffer cmdBuffer){
+			VkClearColorValue clearValue = {};
+			clearValue.float32[0] = clearColor.r;
+			clearValue.float32[1] = clearColor.g;
+			clearValue.float32[2] = clearColor.b;
+			clearValue.float32[3] = clearColor.a;
+			VkImageSubresourceRange range = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1
+			};
+			vkCmdClearColorImage(cmdBuffer, m_Image, m_Layout, &clearValue, 1, &range);
+		}, Renderer::QUEUE_TRANSFER);
+	}
+
 	void ImageBuffer::TransitionLayout(VkCommandBuffer commandBuffer, VkImageLayout newLayout) {
 		if (newLayout == m_Layout) {
 			return;
@@ -274,11 +366,192 @@ namespace cee {
 		memoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		memoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		memoryBarrier.image = m_Image;
-		memoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		memoryBarrier.subresourceRange.baseMipLevel = 0;
-		memoryBarrier.subresourceRange.levelCount = 1;
-		memoryBarrier.subresourceRange.baseArrayLayer = 0;
-		memoryBarrier.subresourceRange.layerCount = 1;
+		memoryBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1
+		};
+
+		VkPipelineStageFlags srcStage, dstStage;
+
+		if (m_Layout == VK_IMAGE_LAYOUT_UNDEFINED &&
+			newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+		{
+			memoryBarrier.srcAccessMask = VK_ACCESS_NONE;
+			memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+			srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		} else if (m_Layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+			newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+		{
+			memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		} else if (m_Layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
+			newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+		{
+			memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+			srcStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		} else
+		{
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING,
+											 "Unsupported image layout transition");
+			return;
+		}
+
+
+		vkCmdPipelineBarrier(commandBuffer, srcStage, dstStage, 0,
+							 0, NULL,
+							 0, NULL,
+							 1, &memoryBarrier);
+
+		m_Layout = newLayout;
+	}
+
+	CubeMapBuffer::CubeMapBuffer()
+	: m_Initialized(false), m_Size(0u), m_Extent({ 0u, 0u, 0u }), m_Image(VK_NULL_HANDLE),
+	  m_DeviceMemory(VK_NULL_HANDLE), m_ImageView(VK_NULL_HANDLE), m_Layout(VK_IMAGE_LAYOUT_UNDEFINED)
+	{
+	}
+
+	CubeMapBuffer::CubeMapBuffer(uint32_t width, uint32_t height)
+	: m_Initialized(false), m_Size(0u), m_Extent({ width, height, 1u }), m_Image(VK_NULL_HANDLE),
+	  m_DeviceMemory(VK_NULL_HANDLE), m_ImageView(VK_NULL_HANDLE), m_Layout(VK_IMAGE_LAYOUT_UNDEFINED)
+	{
+		Renderer::Get()->CreateImageObjects(&m_Image, &m_DeviceMemory, &m_ImageView,
+											VK_FORMAT_R8G8B8A8_SRGB,
+											VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+											VK_IMAGE_USAGE_SAMPLED_BIT,
+											&width, &height, &m_Size,
+											1, 6);
+
+		m_Initialized = true;
+	}
+
+	CubeMapBuffer::CubeMapBuffer(std::vector<std::string> filenames)
+	: m_Initialized(false), m_Size(0u), m_Extent({ 0u, 0u, 1u }), m_Image(VK_NULL_HANDLE),
+	  m_DeviceMemory(VK_NULL_HANDLE), m_ImageView(VK_NULL_HANDLE), m_Layout(VK_IMAGE_LAYOUT_UNDEFINED)
+	{
+		void* imageData = stbi_load(filenames[0].c_str(),
+									reinterpret_cast<int*>(&m_Extent.width),
+									reinterpret_cast<int*>(&m_Extent.height),
+									NULL, 4);
+		CEE_VERIFY(imageData != NULL, "Failed to read image from file");
+
+		Renderer::Get()->CreateImageObjects(&m_Image, &m_DeviceMemory, &m_ImageView,
+											VK_FORMAT_R8G8B8A8_SRGB,
+											VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+											VK_IMAGE_USAGE_SAMPLED_BIT,
+											&m_Extent.width, &m_Extent.height, &m_Size,
+											1, 6);
+		m_Initialized = true;
+
+		size_t singleImageSize = m_Extent.width * m_Extent.height * 4;
+		StagingBuffer sb = Renderer::Get()->CreateStagingBuffer(m_Size);
+		sb.SetData(singleImageSize, 0, imageData);
+		free(imageData);
+		for (uint32_t i = 1; i < 6; i++) {
+			int thisImageWidth, thisImageHeight;
+			imageData = stbi_load(filenames[i].c_str(),
+								  &thisImageWidth,
+								  &thisImageHeight,
+								  NULL, 4);
+			CEE_VERIFY(imageData != NULL, "Failed to read image from file");
+			CEE_ASSERT(thisImageWidth == static_cast<int>(m_Extent.width) &&
+					   thisImageHeight == static_cast<int>(m_Extent.height),
+					   "Image sizes do not match");
+			sb.SetData(singleImageSize, i * singleImageSize, imageData);
+			free(imageData);
+		}
+		sb.TransferData(*this, 0);
+	}
+
+	CubeMapBuffer::CubeMapBuffer(CubeMapBuffer&& other) {
+		*this = std::move(other);
+	}
+
+	CubeMapBuffer::~CubeMapBuffer() {
+		if (m_Initialized) {
+			vkDestroyImageView(Renderer::Get()->GetDevice(), m_ImageView, NULL);
+			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
+			vkDestroyImage(Renderer::Get()->GetDevice(), m_Image, NULL);
+		}
+	}
+
+	CubeMapBuffer& CubeMapBuffer::operator=(CubeMapBuffer&& other) {
+		if (this->m_Initialized) {
+			this->~CubeMapBuffer();
+		}
+
+		this->m_Initialized = other.m_Initialized;
+		other.m_Initialized = false;
+
+		this->m_Size = other.m_Size;
+		this->m_Extent = other.m_Extent;
+		this->m_Image = other.m_Image;
+		this->m_DeviceMemory = other.m_DeviceMemory;
+		this->m_ImageView = other.m_ImageView;
+		this->m_Layout = other.m_Layout;
+
+		other.m_Size = 0;
+		other.m_Extent = { 0u, 0u, 0u };
+		other.m_Image = VK_NULL_HANDLE;
+		other.m_DeviceMemory = VK_NULL_HANDLE;
+		other.m_ImageView = VK_NULL_HANDLE;
+		other.m_Layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		return *this;
+	}
+
+	void CubeMapBuffer::Clear(glm::vec4 clearColor) {
+		Renderer::Get()->ImmediateSubmit([this, &clearColor](VkCommandBuffer cmdBuffer){
+			this->TransitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+			VkClearColorValue vkClearColor;
+			vkClearColor.float32[0] = clearColor.r;
+			vkClearColor.float32[1] = clearColor.g;
+			vkClearColor.float32[2] = clearColor.b;
+			vkClearColor.float32[3] = clearColor.a;
+			VkImageSubresourceRange range = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 6
+			};
+			vkCmdClearColorImage(cmdBuffer, m_Image, m_Layout, &vkClearColor, 1, &range);
+			this->TransitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}, Renderer::QUEUE_TRANSFER);
+	}
+
+	void CubeMapBuffer::TransitionLayout(VkCommandBuffer commandBuffer, VkImageLayout newLayout) {
+		if (newLayout == m_Layout) {
+			return;
+		}
+
+		VkImageMemoryBarrier memoryBarrier = {};
+		memoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		memoryBarrier.pNext = NULL;
+		memoryBarrier.oldLayout = m_Layout;
+		memoryBarrier.newLayout = newLayout;
+		// TODO check queue families.
+		memoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		memoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		memoryBarrier.image = m_Image;
+		memoryBarrier.subresourceRange = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 6
+		};
 
 		VkPipelineStageFlags srcStage, dstStage;
 
@@ -520,6 +793,43 @@ namespace cee {
 
 		return result == VK_SUCCESS ? 0 : -1;
 	}
+	int StagingBuffer::TransferData(CubeMapBuffer& imageBuffer, size_t srcOffset) {
+		if (!this->m_Initialized || !imageBuffer.m_Initialized) {
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
+											 "Trying to copy data using an uninitialized buffer.");
+			return -1;
+		}
+		VkResult result = Renderer::Get()->ImmediateSubmit([this, &imageBuffer, srcOffset](VkCommandBuffer cmdBuffer){
+			imageBuffer.TransitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+			std::array<VkBufferImageCopy, 6> imageCopyRanges;
+			for (uint32_t i = 0; i < 6; i++) {
+				VkImageSubresourceLayers subresourceLayers = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = 0,
+					.baseArrayLayer = i,
+					.layerCount = 1
+				};
+				VkBufferImageCopy range = {
+					.bufferOffset = (imageBuffer.m_Extent.width * imageBuffer.m_Extent.height * 4 * i) + srcOffset,
+					.bufferRowLength = 0,
+					.bufferImageHeight = 0,
+					.imageSubresource = subresourceLayers,
+					.imageOffset = { 0u, 0u, 0u },
+					.imageExtent = imageBuffer.m_Extent
+				};
+				imageCopyRanges[i] = range;
+			}
+			vkCmdCopyBufferToImage(cmdBuffer, m_Buffer,
+								   imageBuffer.m_Image, imageBuffer.m_Layout,
+								   6, imageCopyRanges.data());
+
+			imageBuffer.TransitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}, Renderer::QUEUE_TRANSFER);
+
+
+		return result == VK_SUCCESS ? 0 : -1;
+	}
 
 	int StagingBuffer::TransferDataImmediate(VertexBuffer& vertexBuffer, size_t srcOffset, size_t dstOffset, size_t size) {
 		// Check that buffers are valid
@@ -610,8 +920,45 @@ namespace cee {
 		return result == VK_SUCCESS ? 0 : -1;
 	}
 
-	Renderer* Renderer::s_Instance = NULL;
+	int StagingBuffer::TransferDataImmediate(CubeMapBuffer& imageBuffer, size_t srcOffset) {
+		if (!this->m_Initialized || !imageBuffer.m_Initialized) {
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
+											 "Trying to copy data using an uninitialized buffer.");
+			return -1;
+		}
+		VkResult result = Renderer::Get()->ImmediateSubmit([this, &imageBuffer, srcOffset](VkCommandBuffer cmdBuffer){
+			imageBuffer.TransitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
+			std::array<VkBufferImageCopy, 6> imageCopyRanges;
+			for (uint32_t i = 0; i < 6; i++) {
+				VkImageSubresourceLayers subresourceLayers = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = 0,
+					.baseArrayLayer = i,
+					.layerCount = 1
+				};
+				VkBufferImageCopy range = {
+					.bufferOffset = (imageBuffer.m_Extent.width * imageBuffer.m_Extent.height * 4) + srcOffset,
+					.bufferRowLength = 0,
+					.bufferImageHeight = 0,
+					.imageSubresource = subresourceLayers,
+					.imageOffset = { 0u, 0u, 0u },
+					.imageExtent = imageBuffer.m_Extent
+				};
+				imageCopyRanges[i] = range;
+			}
+			vkCmdCopyBufferToImage(cmdBuffer, m_Buffer,
+								   imageBuffer.m_Image, imageBuffer.m_Layout,
+								   6, imageCopyRanges.data());
+
+			imageBuffer.TransitionLayout(cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}, Renderer::QUEUE_TRANSFER);
+		return result == VK_SUCCESS ? 0 : -1;
+	}
+
+
+
+	Renderer* Renderer::s_Instance = NULL;
 
 	Renderer::Renderer(const RendererCapabilities& capabilities,
 					   std::shared_ptr<Window> window)
@@ -838,7 +1185,9 @@ namespace cee {
 			std::free(physicalDevices);
 
 			vkGetPhysicalDeviceProperties(m_PhysicalDevice, &m_PhysicalDeviceProperties);
-			char message[512];
+			vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &m_PhysicalDeviceMemoryProperties);
+
+			char message[4096];
 			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Phsysical device properties:");
 			sprintf(message, "\tDevice Name: %s", m_PhysicalDeviceProperties.deviceName);
 			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
@@ -852,6 +1201,7 @@ namespace cee {
 					(m_PhysicalDeviceProperties.apiVersion & 0x3FF000) >> 12,
 					(m_PhysicalDeviceProperties.apiVersion & 0xFFF));
 			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+
 		}
 		{
 #if defined(CEE_PLATFORM_WINDOWS)
@@ -1886,6 +2236,13 @@ namespace cee {
 				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to allocate command buffers for draw commands.");
 				return -1;
 			}
+			cmdBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+			m_GeomertyDrawCmdBuffers.resize(m_SwapchainImageCount);
+			result = vkAllocateCommandBuffers(m_Device, &cmdBufferAllocateInfo, m_GeomertyDrawCmdBuffers.data());
+			if (result != VK_SUCCESS) {
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to allocate command buffers for geomerty draw commands.");
+				return -1;
+			}
 		}
 		{
 			m_ImageAvailableSemaphores.reserve(m_Capabilites.maxFramesInFlight);
@@ -1953,7 +2310,7 @@ namespace cee {
 
 			m_ImageBuffer = this->CreateImageBuffer(imageSize.width,
 													imageSize.height,
-													IMAGE_FORMAT_R8G8B8A8);
+													IMAGE_FORMAT_R8G8B8A8_SRGB);
 
 			stagingBuffer.SetData(imageSize.width * imageSize.height * 4, 0, image);
 
@@ -1975,6 +2332,394 @@ namespace cee {
 			m_UniformStagingBuffer = this->CreateStagingBuffer(sizeof(glm::mat4) * 2);
 			m_UniformStagingBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(view));
 			m_UniformStagingBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(perspeciveViewMatrix));
+		}
+		// Skybox resources
+		{
+			// Use width twice to create a cube
+			m_Skybox = CubeMapBuffer(m_SwapchainExtent.width, m_SwapchainExtent.width);
+			m_Skybox.Clear({ 0.2f, 0.0f, 0.8f, 1.0f });
+
+			m_SkyboxUniformBuffer = CreateUniformBuffer(sizeof(glm::mat4) * 2);
+
+			m_SkyboxVertexBuffer = CreateVertexBuffer(6 * sizeof(glm::vec3));
+			StagingBuffer skyboxStagingBuffer = CreateStagingBuffer(6 * sizeof(glm::vec3));
+
+			constexpr glm::vec3 skyboxVertices[] = {
+				{ -1.0f,  1.0f,  1.0f }, {  1.0f,  1.0f,  1.0f }, {  1.0f, -1.0f,  1.0f }, // font face
+				{  1.0f, -1.0f,  1.0f }, { -1.0f, -1.0f,  1.0f }, { -1.0f,  1.0f,  1.0f },
+			};
+			skyboxStagingBuffer.SetData(6 * sizeof(glm::vec3), 0, skyboxVertices);
+			skyboxStagingBuffer.TransferDataImmediate(m_SkyboxVertexBuffer, 0, 0, 6 * sizeof(glm::vec3));
+			skyboxStagingBuffer = CreateStagingBuffer(sizeof(glm::mat4) * 2);
+			glm::mat4 identity(1.0f);
+			skyboxStagingBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(identity));
+			skyboxStagingBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(identity));
+			skyboxStagingBuffer.TransferDataImmediate(m_SkyboxUniformBuffer, 0, 0, sizeof(glm::mat4) * 2);
+			skyboxStagingBuffer = StagingBuffer();
+
+
+			std::array<VkDescriptorSetLayoutBinding, 2> skyboxDescriptorSetLayoutBidnings;
+			skyboxDescriptorSetLayoutBidnings[0].binding = 0;
+			skyboxDescriptorSetLayoutBidnings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			skyboxDescriptorSetLayoutBidnings[0].descriptorCount = 1;
+			skyboxDescriptorSetLayoutBidnings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+			skyboxDescriptorSetLayoutBidnings[0].pImmutableSamplers = NULL;
+			skyboxDescriptorSetLayoutBidnings[1].binding = 1;
+			skyboxDescriptorSetLayoutBidnings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			skyboxDescriptorSetLayoutBidnings[1].descriptorCount = 1;
+			skyboxDescriptorSetLayoutBidnings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+			skyboxDescriptorSetLayoutBidnings[1].pImmutableSamplers = NULL;
+
+			VkDescriptorSetLayoutCreateInfo skyboxDescriptorSetLayoutCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.bindingCount = 2,
+				.pBindings = skyboxDescriptorSetLayoutBidnings.data(),
+			};
+
+			result = vkCreateDescriptorSetLayout(m_Device,
+												 &skyboxDescriptorSetLayoutCreateInfo,
+												 NULL,
+												 &m_SkyboxDescriptorSetLayout);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to create skybox descriptor set layout.");
+
+			std::array<VkDescriptorPoolSize, 2> skyboxDescriptorPoolSizes;
+			skyboxDescriptorPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			skyboxDescriptorPoolSizes[0].descriptorCount = m_Capabilites.maxFramesInFlight;
+			skyboxDescriptorPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			skyboxDescriptorPoolSizes[1].descriptorCount = m_Capabilites.maxFramesInFlight;
+
+
+			VkDescriptorPoolCreateInfo skyboxDescriptorPoolCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.maxSets = 2 * m_Capabilites.maxFramesInFlight,
+				.poolSizeCount = skyboxDescriptorPoolSizes.size(),
+				.pPoolSizes = skyboxDescriptorPoolSizes.data()
+			};
+
+			result = vkCreateDescriptorPool(m_Device, &skyboxDescriptorPoolCreateInfo, NULL, &m_SkyboxDesriptorPool);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to create skybox descriptor pool.");
+
+			std::vector<VkDescriptorSetLayout> skyboxDescriptorSetLayouts(m_Capabilites.maxFramesInFlight, m_SkyboxDescriptorSetLayout);
+			m_SkyboxDescriptorSets.resize(m_Capabilites.maxFramesInFlight);
+
+			VkDescriptorSetAllocateInfo skyboxDescriptorSetAllocateInfo = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+				.pNext = NULL,
+				.descriptorPool = m_SkyboxDesriptorPool,
+				.descriptorSetCount = static_cast<uint32_t>(skyboxDescriptorSetLayouts.size()),
+				.pSetLayouts = skyboxDescriptorSetLayouts.data()
+			};
+
+			result = vkAllocateDescriptorSets(m_Device,
+											  &skyboxDescriptorSetAllocateInfo,
+											  m_SkyboxDescriptorSets.data());
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to allocate skybox descriptor sets.");
+
+			VkSamplerCreateInfo skyboxSamplerCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.magFilter = VK_FILTER_LINEAR,
+				.minFilter = VK_FILTER_LINEAR,
+				.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+				.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+				.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+				.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+				.mipLodBias = 0.0f,
+				.anisotropyEnable = VK_FALSE,
+				.maxAnisotropy = 0.0f,
+				.compareEnable = VK_FALSE,
+				.compareOp = VK_COMPARE_OP_NEVER,
+				.minLod = 1.0f,
+				.maxLod = 1.0f,
+				.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+				.unnormalizedCoordinates = VK_FALSE
+			};
+			result = vkCreateSampler(m_Device, &skyboxSamplerCreateInfo, NULL, &m_SkyboxSampler);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to create sampler for skybox.");
+
+			VkPipelineLayoutCreateInfo skyboxPipelineLayoutCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.setLayoutCount = 1,
+				.pSetLayouts = &m_SkyboxDescriptorSetLayout,
+				.pushConstantRangeCount = 0,
+				.pPushConstantRanges = NULL
+			};
+
+			result = vkCreatePipelineLayout(m_Device,
+											&skyboxPipelineLayoutCreateInfo,
+											NULL,
+											&m_SkyboxPipelineLayout);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to create pipeline layout for skybox");
+			VkShaderModule vertexShaderModule = VK_NULL_HANDLE, fragmentShaderModule = VK_NULL_HANDLE;
+			if (std::filesystem::exists("/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/shaders/renderer3DSkyboxVertex.spv")) {
+				std::ifstream vertexShaderCodeFile("/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/shaders/renderer3DSkyboxVertex.spv", std::ios_base::binary | std::ios_base::ate);
+				CEE_VERIFY(vertexShaderCodeFile.is_open(), "Failed to open skybox vertex shader code for reading");
+				uint32_t vertexCodeSize = vertexShaderCodeFile.tellg();
+				vertexShaderCodeFile.seekg(0ul);
+				std::vector<uint8_t> vertexShaderCode;
+				vertexShaderCode.resize(vertexCodeSize);
+				vertexShaderCodeFile.read(reinterpret_cast<char*>(vertexShaderCode.data()), vertexCodeSize);
+				vertexShaderModule = CreateShaderModule(m_Device, vertexShaderCode);
+				vertexShaderCodeFile.close();
+			} else {
+				CEE_ASSERT(false, "Vertex shader file does not exist.");
+			}
+			if (std::filesystem::exists("/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/shaders/renderer3DSkyboxFragment.spv")) {
+				std::ifstream fragmentShaderCodeFile("/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/shaders/renderer3DSkyboxFragment.spv", std::ios_base::binary | std::ios_base::ate);
+				CEE_VERIFY(fragmentShaderCodeFile.is_open(), "Failed to open skybox fragment shader code for reading");
+				uint32_t fragmentCodeSize = fragmentShaderCodeFile.tellg();
+				fragmentShaderCodeFile.seekg(0ul);
+				std::vector<uint8_t> fragmentShaderCode;
+				fragmentShaderCode.resize(fragmentCodeSize);
+				fragmentShaderCodeFile.read(reinterpret_cast<char*>(fragmentShaderCode.data()), fragmentCodeSize);
+				fragmentShaderModule = CreateShaderModule(m_Device, fragmentShaderCode);
+				fragmentShaderCodeFile.close();
+			} else {
+				CEE_ASSERT(false, "Fragment shader file does not exist.");
+			}
+
+			std::vector<VkPipelineShaderStageCreateInfo> skyboxPipelineShaderStageCrateInfos;
+			skyboxPipelineShaderStageCrateInfos.push_back({
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.stage = VK_SHADER_STAGE_VERTEX_BIT,
+				.module = vertexShaderModule,
+				.pName = "main",
+				.pSpecializationInfo = NULL
+			});
+			skyboxPipelineShaderStageCrateInfos.push_back({
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+				.module = fragmentShaderModule,
+				.pName = "main",
+				.pSpecializationInfo = NULL
+			});
+
+			VkVertexInputBindingDescription skyboxVertexBindingDescription = {
+				.binding = 0,
+				.stride = 12,
+				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+			};
+
+			VkVertexInputAttributeDescription skyboxVertexInputDescription = {
+				.location = 0,
+				.binding = 0,
+				.format = VK_FORMAT_R32G32B32_SFLOAT,
+				.offset = 0
+			};
+
+			VkPipelineVertexInputStateCreateInfo skyboxVertexInputStateCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.vertexBindingDescriptionCount = 1,
+				.pVertexBindingDescriptions = &skyboxVertexBindingDescription,
+				.vertexAttributeDescriptionCount = 1,
+				.pVertexAttributeDescriptions = &skyboxVertexInputDescription
+			};
+
+			VkPipelineInputAssemblyStateCreateInfo skyboxInputAssemblyStateCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+				.primitiveRestartEnable = VK_FALSE
+			};
+
+			VkViewport viewport = {
+				.x = 0.0f,
+				.y = 0.0f,
+				.width = static_cast<float>(m_SwapchainExtent.width),
+				.height = static_cast<float>(m_SwapchainExtent.height),
+				.minDepth = 0.0f,
+				.maxDepth = 1.0f
+			};
+			VkRect2D scissor = {
+				.offset = { 0u, 0u },
+				.extent = m_SwapchainExtent
+			};
+
+			VkPipelineViewportStateCreateInfo skyboxViewportStateCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.viewportCount = 1,
+				.pViewports = &viewport,
+				.scissorCount = 1,
+				.pScissors = &scissor
+			};
+
+			VkPipelineRasterizationStateCreateInfo skyboxRasterizationStateCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.depthClampEnable = VK_FALSE,
+				.rasterizerDiscardEnable = VK_FALSE,
+				.polygonMode = VK_POLYGON_MODE_FILL,
+				.cullMode = VK_CULL_MODE_NONE,
+				.frontFace = VK_FRONT_FACE_CLOCKWISE,
+				.depthBiasEnable = VK_FALSE,
+				.depthBiasConstantFactor = 0.0f,
+				.depthBiasClamp = 0.0f,
+				.depthBiasSlopeFactor = 0.0f,
+				.lineWidth = 1.0f
+			};
+
+			VkPipelineMultisampleStateCreateInfo skyboxMultisampleStateCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+				.sampleShadingEnable = VK_FALSE,
+				.minSampleShading = 1.0f,
+				.pSampleMask = NULL,
+				.alphaToCoverageEnable = VK_FALSE,
+				.alphaToOneEnable = VK_FALSE
+			};
+
+			VkPipelineDepthStencilStateCreateInfo skyboxDepthStencilStateCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.depthTestEnable = VK_TRUE,
+				.depthWriteEnable = VK_TRUE,
+				.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
+				.depthBoundsTestEnable = VK_FALSE,
+				.stencilTestEnable = VK_FALSE,
+				.front = {},
+				.back = {},
+				.minDepthBounds = 0.0f,
+				.maxDepthBounds = 0.0f
+			};
+
+			VkPipelineColorBlendAttachmentState skyboxColorBlendAttachmentState;
+			skyboxColorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+			VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+			skyboxColorBlendAttachmentState.blendEnable = VK_FALSE;
+			skyboxColorBlendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
+			skyboxColorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+			skyboxColorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+			skyboxColorBlendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
+			skyboxColorBlendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+			skyboxColorBlendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+
+			VkPipelineColorBlendStateCreateInfo skyboxColorBlendStateCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.logicOpEnable = VK_FALSE,
+				.logicOp = VK_LOGIC_OP_COPY,
+				.attachmentCount = 1,
+				.pAttachments = &skyboxColorBlendAttachmentState,
+				.blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f }
+			};
+
+
+			VkDynamicState dynamicStates[] = {
+				VK_DYNAMIC_STATE_VIEWPORT,
+				VK_DYNAMIC_STATE_SCISSOR
+			};
+
+			VkPipelineDynamicStateCreateInfo skyboxDynamicStateCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.dynamicStateCount = 2,
+				.pDynamicStates = dynamicStates
+			};
+
+			VkGraphicsPipelineCreateInfo skyboxPipelineCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = 0,
+				.stageCount = static_cast<uint32_t>(skyboxPipelineShaderStageCrateInfos.size()),
+				.pStages = skyboxPipelineShaderStageCrateInfos.data(),
+				.pVertexInputState = &skyboxVertexInputStateCreateInfo,
+				.pInputAssemblyState = &skyboxInputAssemblyStateCreateInfo,
+				.pTessellationState = NULL,
+				.pViewportState = &skyboxViewportStateCreateInfo,
+				.pRasterizationState = &skyboxRasterizationStateCreateInfo,
+				.pMultisampleState = &skyboxMultisampleStateCreateInfo,
+				.pDepthStencilState = &skyboxDepthStencilStateCreateInfo,
+				.pColorBlendState = &skyboxColorBlendStateCreateInfo,
+				.pDynamicState = &skyboxDynamicStateCreateInfo,
+				.layout = m_SkyboxPipelineLayout,
+				.renderPass = m_RenderPass,
+				.subpass = 0,
+				.basePipelineHandle = NULL,
+				.basePipelineIndex = 0
+			};
+			result = vkCreateGraphicsPipelines(m_Device,
+											   m_PipelineCache,
+											   1,
+											   &skyboxPipelineCreateInfo,
+											   NULL,
+											   &m_SkyboxPipeline);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to create pipeline for skybox.");
+
+			VkDescriptorBufferInfo uniformDescriptor = {
+				.buffer = m_SkyboxUniformBuffer.m_Buffer,
+				.offset = 0,
+				.range = m_SkyboxUniformBuffer.m_Size
+			};
+			VkDescriptorImageInfo imageSamplerDescriptor = {
+				.sampler = m_SkyboxSampler,
+				.imageView = m_Skybox.m_ImageView,
+				.imageLayout = m_Skybox.m_Layout
+			};
+			for (uint32_t i = 0; i < m_SkyboxDescriptorSets.size(); i++) {
+				VkWriteDescriptorSet writeDescriptorSets[2];
+				writeDescriptorSets[0] = {
+					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					.pNext = NULL,
+					.dstSet = m_SkyboxDescriptorSets[i],
+					.dstBinding = 0,
+					.dstArrayElement = 0,
+					.descriptorCount = 1,
+					.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+					.pImageInfo = NULL,
+					.pBufferInfo = &uniformDescriptor,
+					.pTexelBufferView = NULL
+				};
+				writeDescriptorSets[1] = {
+					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					.pNext = NULL,
+					.dstSet = m_SkyboxDescriptorSets[i],
+					.dstBinding = 1,
+					.dstArrayElement = 0,
+					.descriptorCount = 1,
+					.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+					.pImageInfo = &imageSamplerDescriptor,
+					.pBufferInfo = NULL,
+					.pTexelBufferView = NULL
+				};
+				vkUpdateDescriptorSets(m_Device, 2, writeDescriptorSets, 0, NULL);
+			}
+			vkDestroyShaderModule(m_Device, vertexShaderModule, NULL);
+			vkDestroyShaderModule(m_Device, fragmentShaderModule, NULL);
+
+			VkCommandBufferAllocateInfo commandBufferAllocateInfo = {
+				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+				.pNext = NULL,
+				.commandPool = m_GraphicsCmdPool,
+				.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY,
+				.commandBufferCount = m_Capabilites.maxFramesInFlight,
+			};
+			m_SkyboxDrawCommandBuffers.resize(m_Capabilites.maxFramesInFlight);
+			result = vkAllocateCommandBuffers(m_Device,
+											  &commandBufferAllocateInfo,
+											  m_SkyboxDrawCommandBuffers.data());
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to allocate skybox command buffers.");
 		}
 		{
 			VkDescriptorBufferInfo bufferInfo = {};
@@ -2084,6 +2829,15 @@ namespace cee {
 		m_ImageBuffer = ImageBuffer();
 		m_UniformStagingBuffer = StagingBuffer();
 		m_UniformBuffer = UniformBuffer();
+		m_Skybox = CubeMapBuffer();
+		m_SkyboxUniformBuffer = UniformBuffer();
+		m_SkyboxVertexBuffer = VertexBuffer();
+		vkDestroySampler(m_Device, m_SkyboxSampler, NULL);
+		vkDestroyPipeline(m_Device, m_SkyboxPipeline, NULL);
+		vkDestroyPipelineLayout(m_Device, m_SkyboxPipelineLayout, NULL);
+		vkDestroyDescriptorPool(m_Device, m_SkyboxDesriptorPool, NULL);
+		vkDestroyDescriptorSetLayout(m_Device, m_SkyboxDescriptorSetLayout, NULL);
+		vkFreeCommandBuffers(m_Device, m_GraphicsCmdPool, m_SkyboxDrawCommandBuffers.size(), m_SkyboxDrawCommandBuffers.data());
 		m_Running.store(false, std::memory_order_relaxed);
 		for (auto& fence : m_InFlightFences) {
 			vkDestroyFence(m_Device, fence, NULL);
@@ -2131,6 +2885,7 @@ namespace cee {
 	}
 
 	int Renderer::StartFrame() {
+		ZoneScoped;
 		VkResult result;
 
 		if (m_RecreateSwapchain) {
@@ -2168,6 +2923,126 @@ retryAqurireNextImage:
 
 		vkResetFences(m_Device, 1, waitFences);
 
+		{
+			vkResetCommandBuffer(m_SkyboxDrawCommandBuffers[m_FrameIndex], 0);
+
+			VkCommandBufferInheritanceInfo inheritanceInfo = {
+					.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
+					.pNext = NULL,
+					.renderPass = m_RenderPass,
+					.subpass = 0,
+					.framebuffer = m_Framebuffers[m_ImageIndex],
+					.occlusionQueryEnable = VK_FALSE,
+					.queryFlags = 0,
+					.pipelineStatistics = 0
+				};
+				VkCommandBufferBeginInfo beginInfo = {
+					.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+					.pNext = NULL,
+					.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT |
+							 VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+					.pInheritanceInfo = &inheritanceInfo
+				};
+
+				result = vkBeginCommandBuffer(m_SkyboxDrawCommandBuffers[m_FrameIndex], &beginInfo);
+				CEE_VERIFY(result == VK_SUCCESS, "Failed to begin command buffer for drawing skybox.");
+
+				vkCmdBindPipeline(m_SkyboxDrawCommandBuffers[m_FrameIndex],
+								  VK_PIPELINE_BIND_POINT_GRAPHICS,
+								  m_SkyboxPipeline);
+
+				VkViewport viewport = {
+					.x = 0,
+					.y = 0,
+					.width = static_cast<float>(m_SwapchainExtent.width),
+					.height = static_cast<float>(m_SwapchainExtent.height),
+					.minDepth = 0.0f,
+					.maxDepth = 1.0f
+				};
+				VkRect2D scissor = {
+					.offset = { 0, 0 },
+					.extent = m_SwapchainExtent
+				};
+				vkCmdSetViewport(m_SkyboxDrawCommandBuffers[m_FrameIndex], 0, 1, &viewport);
+				vkCmdSetScissor(m_SkyboxDrawCommandBuffers[m_FrameIndex], 0, 1, &scissor);
+
+				VkDescriptorSet descriptorSetsToBind[] = {
+					m_SkyboxDescriptorSets[m_FrameIndex]
+				};
+				vkCmdBindDescriptorSets(m_SkyboxDrawCommandBuffers[m_FrameIndex],
+										VK_PIPELINE_BIND_POINT_GRAPHICS,
+										m_SkyboxPipelineLayout,
+										0,
+										1, descriptorSetsToBind,
+										0, NULL);
+
+				VkDeviceSize offsets[] = {
+					0
+				};
+				vkCmdBindVertexBuffers(m_SkyboxDrawCommandBuffers[m_FrameIndex],
+									   0,
+									   1, &m_SkyboxVertexBuffer.m_Buffer,
+									   offsets);
+
+				vkCmdDraw(m_SkyboxDrawCommandBuffers[m_FrameIndex],
+						  6, 1, 0, 0);
+
+				result = vkEndCommandBuffer(m_SkyboxDrawCommandBuffers[m_FrameIndex]);
+				CEE_VERIFY(result == VK_SUCCESS, "Failed to record command buffer for skybox");
+		}
+
+		{
+			vkResetCommandBuffer(m_GeomertyDrawCmdBuffers[m_FrameIndex], 0);
+
+			VkCommandBufferInheritanceInfo inheritanceInfo = {
+					.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
+					.pNext = NULL,
+					.renderPass = m_RenderPass,
+					.subpass = 0,
+					.framebuffer = m_Framebuffers[m_ImageIndex],
+					.occlusionQueryEnable = VK_FALSE,
+					.queryFlags = 0,
+					.pipelineStatistics = 0
+				};
+				VkCommandBufferBeginInfo beginInfo = {
+					.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+					.pNext = NULL,
+					.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT |
+							 VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+					.pInheritanceInfo = &inheritanceInfo
+				};
+
+				result = vkBeginCommandBuffer(m_GeomertyDrawCmdBuffers[m_FrameIndex], &beginInfo);
+				CEE_VERIFY(result == VK_SUCCESS, "Failed to begin command buffer for drawing skybox.");
+
+			std::array<VkDescriptorSet, 2> descriptorSets = {
+				m_UniformDescriptorSets[m_FrameIndex],
+				m_ImageDescriptorSets[m_FrameIndex]
+			};
+			vkCmdBindDescriptorSets(m_GeomertyDrawCmdBuffers[m_FrameIndex],
+									VK_PIPELINE_BIND_POINT_GRAPHICS,
+									m_PipelineLayout,
+									0,
+									descriptorSets.size(),
+									descriptorSets.data(),
+									0, NULL);
+			vkCmdBindPipeline(m_GeomertyDrawCmdBuffers[m_FrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_ActivePipeline);
+
+			VkViewport viewport = {};
+			viewport.x = 0;
+			viewport.y = 0;
+			viewport.width = m_SwapchainExtent.width;
+			viewport.height = m_SwapchainExtent.height;
+			viewport.minDepth = 0.0f;
+			viewport.maxDepth = 1.0f;
+			VkRect2D scissor = {};
+			scissor.extent = m_SwapchainExtent;
+			scissor.offset = { 0, 0 };
+
+			vkCmdSetScissor(m_GeomertyDrawCmdBuffers[m_FrameIndex], 0, 1, &scissor);
+			vkCmdSetViewport(m_GeomertyDrawCmdBuffers[m_FrameIndex], 0, 1, &viewport);
+		}
+
 		vkResetCommandBuffer(m_DrawCmdBuffers[m_FrameIndex], 0);
 
 		VkCommandBufferBeginInfo cmdBeginInfo = {};
@@ -2184,34 +3059,9 @@ retryAqurireNextImage:
 			return -1;
 		}
 
-		VkViewport viewport = {};
-		viewport.x = 0;
-		viewport.y = 0;
-		viewport.width = m_SwapchainExtent.width;
-		viewport.height = m_SwapchainExtent.height;
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
-		VkRect2D scissor = {};
-		scissor.extent = m_SwapchainExtent;
-		scissor.offset = { 0, 0 };
-
 		std::array<VkClearValue, 2> clearValues;
 		memcpy(clearValues[0].color.float32, glm::value_ptr(m_ClearColor), sizeof(glm::vec4));
 		clearValues[1].depthStencil = { 1.0f, 0 };
-
-		std::array<VkDescriptorSet, 2> descriptorSets = {
-			m_UniformDescriptorSets[m_FrameIndex],
-			m_ImageDescriptorSets[m_FrameIndex]
-		};
-
-		vkCmdBindDescriptorSets(m_DrawCmdBuffers[m_FrameIndex],
-								VK_PIPELINE_BIND_POINT_GRAPHICS,
-								m_PipelineLayout,
-								0,
-								descriptorSets.size(),
-								descriptorSets.data(),
-								0, NULL);
-		vkCmdBindPipeline(m_DrawCmdBuffers[m_FrameIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, m_ActivePipeline);
 
 		VkRenderPassBeginInfo renderPassBeginInfo = {};
 		renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -2222,24 +3072,44 @@ retryAqurireNextImage:
 		renderPassBeginInfo.renderArea.extent = m_SwapchainExtent;
 		renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
 		renderPassBeginInfo.pClearValues = clearValues.data();
+		vkCmdBeginRenderPass(m_DrawCmdBuffers[m_FrameIndex],
+							 &renderPassBeginInfo,
+							 VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
-		vkCmdSetScissor(m_DrawCmdBuffers[m_FrameIndex], 0, 1, &scissor);
-		vkCmdSetViewport(m_DrawCmdBuffers[m_FrameIndex], 0, 1, &viewport);
+		std::array<VkCommandBuffer, 1> SecondaryCommandBuffers = {
+			m_SkyboxDrawCommandBuffers[m_FrameIndex]
+		};
+		vkCmdExecuteCommands(m_DrawCmdBuffers[m_FrameIndex],
+							SecondaryCommandBuffers.size(),
+							SecondaryCommandBuffers.data());
 
-		vkCmdBeginRenderPass(m_DrawCmdBuffers[m_FrameIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		return 0;
 	}
 
 	int Renderer::EndFrame() {
+		ZoneScoped;
 		VkResult result = VK_SUCCESS;
 
 		FlushQueuedSubmits();
 
-		vkCmdEndRenderPass(m_DrawCmdBuffers[m_FrameIndex]);
+		{
+			vkEndCommandBuffer(m_GeomertyDrawCmdBuffers[m_FrameIndex]);
 
-		vkEndCommandBuffer(m_DrawCmdBuffers[m_FrameIndex]);
+			std::array<VkCommandBuffer, 1> SecondaryCommandBuffers = {
+				m_GeomertyDrawCmdBuffers[m_FrameIndex]
+			};
+			vkCmdExecuteCommands(m_DrawCmdBuffers[m_FrameIndex],
+								SecondaryCommandBuffers.size(),
+								SecondaryCommandBuffers.data());
+		}
+		{
+			ZoneScoped;
+			ZoneNamed(EndFrameResources, true);
+			vkCmdEndRenderPass(m_DrawCmdBuffers[m_FrameIndex]);
 
+			vkEndCommandBuffer(m_DrawCmdBuffers[m_FrameIndex]);
+		}
 		VkCommandBuffer commandBuffersForSubmission[] = {
 			m_DrawCmdBuffers[m_FrameIndex]
 		};
@@ -2254,45 +3124,52 @@ retryAqurireNextImage:
 			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
 		};
 
-		VkSubmitInfo commandBufferSubmitInfo = {};
-		commandBufferSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		commandBufferSubmitInfo.pNext = NULL;
-		commandBufferSubmitInfo.commandBufferCount = 1;
-		commandBufferSubmitInfo.pCommandBuffers = commandBuffersForSubmission;
-		commandBufferSubmitInfo.signalSemaphoreCount = sizeof(commandBufferSignalSemaphores)/sizeof(commandBufferSignalSemaphores[0]);
-		commandBufferSubmitInfo.pSignalSemaphores = commandBufferSignalSemaphores;
-		commandBufferSubmitInfo.waitSemaphoreCount = sizeof(commandBufferWaitSemaphores)/sizeof(commandBufferWaitSemaphores[0]);
-		commandBufferSubmitInfo.pWaitSemaphores = commandBufferWaitSemaphores;
-		commandBufferSubmitInfo.pWaitDstStageMask = commandBufferWaitStages;
+		{
+			ZoneScoped;
+			ZoneNamed(GraphicsSubmit, true);
+			VkSubmitInfo commandBufferSubmitInfo = {};
+			commandBufferSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+			commandBufferSubmitInfo.pNext = NULL;
+			commandBufferSubmitInfo.commandBufferCount = 1;
+			commandBufferSubmitInfo.pCommandBuffers = commandBuffersForSubmission;
+			commandBufferSubmitInfo.signalSemaphoreCount = sizeof(commandBufferSignalSemaphores)/sizeof(commandBufferSignalSemaphores[0]);
+			commandBufferSubmitInfo.pSignalSemaphores = commandBufferSignalSemaphores;
+			commandBufferSubmitInfo.waitSemaphoreCount = sizeof(commandBufferWaitSemaphores)/sizeof(commandBufferWaitSemaphores[0]);
+			commandBufferSubmitInfo.pWaitSemaphores = commandBufferWaitSemaphores;
+			commandBufferSubmitInfo.pWaitDstStageMask = commandBufferWaitStages;
 
-		result = vkQueueSubmit(m_GraphicsQueue, 1, &commandBufferSubmitInfo, m_InFlightFences[m_FrameIndex]);
-		if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING,
-											 "Failed to submit geometry command buffer to graphics queue.");
+			result = vkQueueSubmit(m_GraphicsQueue, 1, &commandBufferSubmitInfo, m_InFlightFences[m_FrameIndex]);
+			if (result != VK_SUCCESS) {
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING,
+												"Failed to submit geometry command buffer to graphics queue.");
+			}
 		}
+		{
+			ZoneScoped;
+			ZoneNamed(PresentSubmit, true);
+			VkSemaphore presentWaitSemaphores[] = {
+				m_RenderFinishedSemaphores[m_FrameIndex]
+			};
 
-		VkSemaphore presentWaitSemaphores[] = {
-			m_RenderFinishedSemaphores[m_FrameIndex]
-		};
+			VkPresentInfoKHR presentInfo = {};
+			presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+			presentInfo.pNext = NULL;
+			presentInfo.swapchainCount = 1;
+			presentInfo.pSwapchains = &m_Swapchain;
+			presentInfo.pImageIndices = &m_ImageIndex;
+			presentInfo.pResults = NULL;
+			presentInfo.waitSemaphoreCount = 1;
+			presentInfo.pWaitSemaphores = presentWaitSemaphores;
 
-		VkPresentInfoKHR presentInfo = {};
-		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-		presentInfo.pNext = NULL;
-		presentInfo.swapchainCount = 1;
-		presentInfo.pSwapchains = &m_Swapchain;
-		presentInfo.pImageIndices = &m_ImageIndex;
-		presentInfo.pResults = NULL;
-		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = presentWaitSemaphores;
-
-		result = vkQueuePresentKHR(m_PresentQueue, &presentInfo);
-		if (result == VK_SUBOPTIMAL_KHR) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO,
-											 "Suboptimal KHR... Will recreate swapchain before next frame.");
-			m_RecreateSwapchain = true;
-		} else if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
-											 "Failed to queue present.");
+			result = vkQueuePresentKHR(m_PresentQueue, &presentInfo);
+			if (result == VK_SUBOPTIMAL_KHR) {
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO,
+												"Suboptimal KHR... Will recreate swapchain before next frame.");
+				m_RecreateSwapchain = true;
+			} else if (result != VK_SUCCESS) {
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
+												"Failed to queue present.");
+			}
 		}
 
 		if (++m_FrameIndex >= m_Capabilites.maxFramesInFlight)
@@ -2306,11 +3183,11 @@ retryAqurireNextImage:
 	int Renderer::Draw(const IndexBuffer& indexBuffer, const VertexBuffer& vertexBuffer, uint32_t indexCount) {
 		ZoneScoped;
 
-		vkCmdBindIndexBuffer(m_DrawCmdBuffers[m_FrameIndex], indexBuffer.m_Buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(m_GeomertyDrawCmdBuffers[m_FrameIndex], indexBuffer.m_Buffer, 0, VK_INDEX_TYPE_UINT32);
 		size_t offset = 0;
-		vkCmdBindVertexBuffers(m_DrawCmdBuffers[m_FrameIndex], 0, 1, &vertexBuffer.m_Buffer, &offset);
+		vkCmdBindVertexBuffers(m_GeomertyDrawCmdBuffers[m_FrameIndex], 0, 1, &vertexBuffer.m_Buffer, &offset);
 
-		vkCmdDrawIndexed(m_DrawCmdBuffers[m_FrameIndex], indexCount, 1, 0, 0, 0);
+		vkCmdDrawIndexed(m_GeomertyDrawCmdBuffers[m_FrameIndex], indexCount, 1, 0, 0, 0);
 
 		return 0;
 	}
@@ -2318,8 +3195,13 @@ retryAqurireNextImage:
 	int Renderer::UpdateCamera(Camera& camera) {
 		ZoneScoped;
 
+		VkFence WaitFences[] = { m_InFlightFences[m_FrameIndex] };
+		vkWaitForFences(m_Device, 1, WaitFences, VK_TRUE, UINT64_MAX);
+
+		m_UniformStagingBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(camera.GetTransform()));
 		m_UniformStagingBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(camera.GetProjection()));
-		m_UniformStagingBuffer.TransferData(m_UniformBuffer, sizeof(glm::mat4), sizeof(glm::mat4), sizeof(glm::mat4));
+		m_UniformStagingBuffer.TransferData(m_UniformBuffer, 0, 0, sizeof(glm::mat4) * 2);
+		m_UniformStagingBuffer.TransferData(m_SkyboxUniformBuffer, 0, 0, sizeof(glm::mat4) * 2);
 
 		VkDescriptorBufferInfo projectionBufferInfo = {};
 		projectionBufferInfo.buffer= m_UniformBuffer.m_Buffer;
@@ -2338,12 +3220,70 @@ retryAqurireNextImage:
 		projectionDescriptorWrite.pBufferInfo = &projectionBufferInfo;
 		projectionDescriptorWrite.pTexelBufferView = NULL;
 
-		vkUpdateDescriptorSets(m_Device, 1, &projectionDescriptorWrite, 0, NULL);
+		VkDescriptorBufferInfo skyboxProjectionBufferInfo = {};
+		skyboxProjectionBufferInfo.buffer= m_SkyboxUniformBuffer.m_Buffer;
+		skyboxProjectionBufferInfo.range = sizeof(glm::mat4) * 2;
+		skyboxProjectionBufferInfo.offset = 0;
+
+		VkWriteDescriptorSet skyboxProjectionDescriptorWrite = {};
+		skyboxProjectionDescriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		skyboxProjectionDescriptorWrite.pNext = NULL;
+		skyboxProjectionDescriptorWrite.dstSet = m_SkyboxDescriptorSets[m_FrameIndex];
+		skyboxProjectionDescriptorWrite.dstBinding = 0;
+		skyboxProjectionDescriptorWrite.dstArrayElement = 0;
+		skyboxProjectionDescriptorWrite.descriptorCount = 1;
+		skyboxProjectionDescriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		skyboxProjectionDescriptorWrite.pImageInfo = NULL;
+		skyboxProjectionDescriptorWrite.pBufferInfo = &skyboxProjectionBufferInfo;
+		skyboxProjectionDescriptorWrite.pTexelBufferView = NULL;
+
+		VkWriteDescriptorSet writeDescriptorSets[] = {
+			projectionDescriptorWrite,
+			skyboxProjectionDescriptorWrite
+		};
+
+		vkUpdateDescriptorSets(m_Device, 2, writeDescriptorSets, 0, NULL);
 
 		return 0;
 	}
 
+	void Renderer::UpdateSkybox(CubeMapBuffer& newSkybox) {
+		VkDescriptorImageInfo imageInfo = {
+			.sampler = m_SkyboxSampler,
+			.imageView = newSkybox.m_ImageView,
+			.imageLayout = newSkybox.m_Layout
+		};
+
+		const uint32_t loopEntry = m_FrameIndex >= m_Capabilites.maxFramesInFlight ? 0 : m_FrameIndex + 1;
+		uint32_t i = loopEntry;
+
+		do {
+			VkFence waitFence = m_InFlightFences[i];
+			vkWaitForFences(m_Device, 1, &waitFence, VK_TRUE, UINT64_MAX);
+			VkWriteDescriptorSet writeDescriptorSet = {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.pNext = NULL,
+				.dstSet = m_SkyboxDescriptorSets[i],
+				.dstBinding = 1,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType  =VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				.pImageInfo = &imageInfo,
+				.pBufferInfo = NULL,
+				.pTexelBufferView = NULL
+			};
+
+			vkUpdateDescriptorSets(m_Device, 1, &writeDescriptorSet, 0, NULL);
+
+			if (++i >= m_Capabilites.maxFramesInFlight)
+				i = 0;
+		} while(i != loopEntry);
+
+		m_Skybox = std::move(newSkybox);
+	}
+
 	void Renderer::InvalidateSwapchain() {
+		ZoneScoped;
 		VkSwapchainKHR oldSwapchain = m_Swapchain;
 		VkResult result = vkWaitForFences(m_Device,
 										  m_InFlightFences.size(),
@@ -2511,6 +3451,7 @@ retryAqurireNextImage:
 	}
 
 	VkResult Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer&)> fn, CommandQueueType queueType) {
+		ZoneScoped;
 		VkCommandBufferAllocateInfo commandBufferAllocateInfo = {};
 		commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		commandBufferAllocateInfo.pNext = NULL;
@@ -2591,6 +3532,7 @@ retryAqurireNextImage:
 	}
 
 	VkResult Renderer::QueueSubmit(std::function<void(VkCommandBuffer&)> fn, CommandQueueType queueType) {
+		ZoneScoped;
 		VkResult result = VK_SUCCESS;
 
 		BakedCommandBuffer bakedCommandBuffer;
@@ -2646,6 +3588,7 @@ retryAqurireNextImage:
 	}
 
 	VkResult Renderer::FlushQueuedSubmits() {
+		ZoneScoped;
 		VkResult result = VK_SUCCESS;
 
 		std::vector<VkCommandBuffer> transferCommandBuffers;
@@ -2700,14 +3643,41 @@ retryAqurireNextImage:
 		}
 		m_QueuedSubmits[m_FrameIndex].clear();
 
-		vkDeviceWaitIdle(m_Device);
+		std::vector<VkCommandBuffer> finishedTransferCommandBuffers;
+		std::vector<VkCommandBuffer> finishedGraphicsCommandBuffers;
+		auto it = m_CommandBufferDeletionQueue.begin();
+		while (it != m_CommandBufferDeletionQueue.end()) {
+			if ((*it).age > m_Capabilites.maxFramesInFlight) {
+				if ((*it).queueType == QUEUE_TRANSFER) {
+					finishedTransferCommandBuffers.push_back((*it).commandBuffer);
+				} else if ((*it).queueType == QUEUE_GRAPHICS) {
+					finishedGraphicsCommandBuffers.push_back((*it).commandBuffer);
+				}
+				it = m_CommandBufferDeletionQueue.erase(it);
+			} else {
+				(*it).age++;
+				it++;
+			}
+		}
+		if (!finishedTransferCommandBuffers.empty()) {
+			vkFreeCommandBuffers(m_Device, m_TransferCmdPool, finishedTransferCommandBuffers.size(), finishedTransferCommandBuffers.data());
+		}
+		if (!finishedGraphicsCommandBuffers.empty()) {
+			vkFreeCommandBuffers(m_Device, m_GraphicsCmdPool, finishedGraphicsCommandBuffers.size(), finishedGraphicsCommandBuffers.data());
+		}
 
-		vkFreeCommandBuffers(m_Device, m_TransferCmdPool, transferCommandBuffers.size(), transferCommandBuffers.data());
-		vkFreeCommandBuffers(m_Device, m_GraphicsCmdPool, graphicsCommandBuffers.size(), graphicsCommandBuffers.data());
+		for (auto& commandBuffer : transferCommandBuffers) {
+			m_CommandBufferDeletionQueue.push_back({ commandBuffer, QUEUE_TRANSFER, 0 });
+		}
+		for (auto& commandBuffer : graphicsCommandBuffers) {
+			m_CommandBufferDeletionQueue.push_back({ commandBuffer, QUEUE_GRAPHICS, 0 });
+		}
+
 		return result;
 	}
 
 	VkCommandBuffer Renderer::StartCommandBuffer(CommandQueueType queueType) {
+		ZoneScoped;
 		VkCommandBufferAllocateInfo commandBufferAllocateInfo = {};
 		commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		commandBufferAllocateInfo.pNext = NULL;
@@ -2749,6 +3719,7 @@ retryAqurireNextImage:
 	}
 
 	VkResult Renderer::SubmitCommandBufferNow(VkCommandBuffer commandBuffer, CommandQueueType queueType) {
+		ZoneScoped;
 		VkResult result = VK_SUCCESS;
 
 		result = vkEndCommandBuffer(commandBuffer);
@@ -2803,6 +3774,7 @@ retryAqurireNextImage:
 	}
 
 	void Renderer::QueueCommandBuffer(VkCommandBuffer commandBuffer, CommandQueueType queueType) {
+		ZoneScoped;
 		VkResult result;
 
 		result = vkEndCommandBuffer(commandBuffer);
@@ -2964,6 +3936,80 @@ retryAqurireNextImage:
 		}
 		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to find supported depth format.");
 		return VK_FORMAT_MAX_ENUM;
+	}
+
+	VkResult Renderer::CreateImageObjects(VkImage* image, VkDeviceMemory* deviceMemory, VkImageView* imageView,
+										  VkFormat format, VkImageUsageFlags usage,
+										  uint32_t* width, uint32_t* height, size_t* size,
+										  uint32_t mipLevels, uint32_t layers)
+	{
+		VkResult result = VK_SUCCESS;
+
+		VkImageCreateInfo imageCreateInfo = {};
+		VkMemoryRequirements imageMemoryRequirements = {};
+		VkMemoryAllocateInfo imageAlloacteInfo = {};
+		VkImageViewCreateInfo imageViewCreateInfo = {};
+
+		imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageCreateInfo.pNext = NULL;
+		imageCreateInfo.flags = layers == 6 ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
+		imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+		imageCreateInfo.format = format;
+		imageCreateInfo.extent = { *width, *height, 1 };
+		imageCreateInfo.mipLevels = mipLevels;
+		imageCreateInfo.arrayLayers = layers;
+		imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageCreateInfo.usage = usage;
+		imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageCreateInfo.queueFamilyIndexCount = 0;
+		imageCreateInfo.pQueueFamilyIndices = NULL;
+		imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		result = vkCreateImage(m_Device, &imageCreateInfo, NULL, image);
+		CEE_VERIFY(result == VK_SUCCESS, "Failed to create components for image. create image.");
+
+		vkGetImageMemoryRequirements(m_Device, *image, &imageMemoryRequirements);
+
+		imageAlloacteInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		imageAlloacteInfo.pNext = NULL;
+		imageAlloacteInfo.allocationSize = imageMemoryRequirements.size;
+		imageAlloacteInfo.memoryTypeIndex = ChooseMemoryType(imageMemoryRequirements.memoryTypeBits,
+															 m_PhysicalDeviceMemoryProperties,
+															 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+		result = vkAllocateMemory(m_Device, &imageAlloacteInfo, NULL, deviceMemory);
+		CEE_VERIFY(result == VK_SUCCESS, "Failed to create components for image. alloc.");
+
+		result = vkBindImageMemory(m_Device, *image, *deviceMemory, 0);
+		CEE_VERIFY(result == VK_SUCCESS, "Failed to create components for image. bind.");
+
+		imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		imageViewCreateInfo.pNext = NULL;
+		imageViewCreateInfo.flags = 0;
+		imageViewCreateInfo.image = *image;
+		imageViewCreateInfo.viewType = layers == 6 ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
+		imageViewCreateInfo.format = format;
+		imageViewCreateInfo.components = {
+			.r = VK_COMPONENT_SWIZZLE_R,
+			.g = VK_COMPONENT_SWIZZLE_G,
+			.b = VK_COMPONENT_SWIZZLE_B,
+			.a = VK_COMPONENT_SWIZZLE_A
+		};
+		imageViewCreateInfo.subresourceRange = {
+			.aspectMask = format == m_DepthFormat ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = layers
+		};
+
+		result = vkCreateImageView(m_Device, &imageViewCreateInfo, NULL, imageView);
+		CEE_VERIFY(result == VK_SUCCESS, "Failed to create components for image. create image view.");
+
+		*size = imageAlloacteInfo.allocationSize;
+
+		return result;
 	}
 
 	int Renderer::TransitionImageLayout(VkImage image,
@@ -3158,119 +4204,31 @@ retryAqurireNextImage:
 
 		VkResult result = VK_SUCCESS;
 
-		VkExtent3D imageSize ={};
-		imageSize.width = width;
-		imageSize.height = height;
-		imageSize.depth = 1;
-
-		VkImageCreateInfo imageCreateInfo = {};
-		imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		imageCreateInfo.pNext = NULL;
-		imageCreateInfo.flags = 0;
-		imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-		imageCreateInfo.extent = imageSize;
-		imageCreateInfo.mipLevels = 1;
-		imageCreateInfo.arrayLayers = 1;
-		imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		imageCreateInfo.queueFamilyIndexCount = 0;
-		imageCreateInfo.pQueueFamilyIndices = NULL;
-		imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-		VkImageViewCreateInfo imageViewCreateInfo = {};
-
-		switch (format) {
-			case IMAGE_FORMAT_R8G8B8A8:
-			{
-				imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-				imageCreateInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-
-				imageViewCreateInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-				imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			}
-			break;
-
-			case IMAGE_FORMAT_DEPTH:
-			{
-				imageCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-				imageCreateInfo.format = m_DepthFormat;
-
-				imageViewCreateInfo.format = imageCreateInfo.format;
-				imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-			}
-			break;
-
-			case IMAGE_FORMAT_UNKNOWN:
-			{
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
-												 "Failed to create image: "
-												 "Provided image format IMAGE_FORMAT_UNKNOWN");
-				return ImageBuffer();
-			}
+		if (format == IMAGE_FORMAT_DEPTH) {
+			result = Renderer::Get()->CreateImageObjects(&buffer.m_Image,
+														 &buffer.m_DeviceMemory,
+														 &buffer.m_ImageView,
+														 m_DepthFormat,
+														 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+														 VK_IMAGE_USAGE_SAMPLED_BIT,
+														 (uint32_t*)&width,
+														 (uint32_t*)&height,
+														 &buffer.m_Size,
+														 1, 1);
+		} else {
+			result = Renderer::Get()->CreateImageObjects(&buffer.m_Image,
+														 &buffer.m_DeviceMemory,
+														 &buffer.m_ImageView,
+														 CeeFormatToVkFormat(format),
+														 VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+														 VK_IMAGE_USAGE_SAMPLED_BIT,
+														 (uint32_t*)&width,
+														 (uint32_t*)&height,
+														 &buffer.m_Size,
+														 1, 1);
 		}
-		result = vkCreateImage(m_Device, &imageCreateInfo, NULL, &buffer.m_Image);
-		if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
-												"Failed to create image.");
-			return ImageBuffer();
-		}
+		CEE_VERIFY(result == VK_SUCCESS, "Failed to create image buffer.");
 
-		VkPhysicalDeviceMemoryProperties memoryProperties = {};
-		vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memoryProperties);
-
-		VkMemoryRequirements memoryRequirements = {};
-		vkGetImageMemoryRequirements(m_Device, buffer.m_Image, &memoryRequirements);
-
-		VkMemoryAllocateInfo memoryAllocateInfo = {};
-		memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memoryAllocateInfo.pNext = NULL;
-		memoryAllocateInfo.allocationSize = memoryRequirements.size;
-		memoryAllocateInfo.memoryTypeIndex = ChooseMemoryType(memoryRequirements.memoryTypeBits,
-																memoryProperties,
-																VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-		result = vkAllocateMemory(m_Device, &memoryAllocateInfo, NULL, &buffer.m_DeviceMemory);
-		if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
-												"Failed to allocte memory for image.");
-			vkDestroyImage(m_Device, buffer.m_Image, NULL);
-			return ImageBuffer();
-		}
-
-		result = vkBindImageMemory(m_Device, buffer.m_Image, buffer.m_DeviceMemory, 0);
-		if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
-											 "Failed to bind memory for image buffer.");
-			vkDestroyImage(m_Device, buffer.m_Image, NULL);
-			vkFreeMemory(m_Device, buffer.m_DeviceMemory, NULL);
-			return ImageBuffer();
-		}
-
-		imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		imageViewCreateInfo.pNext = NULL;
-		imageViewCreateInfo.flags = 0;
-		imageViewCreateInfo.image = buffer.m_Image;
-		imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-		imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-		imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-		imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-		imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-		imageViewCreateInfo.subresourceRange.levelCount = 1;
-		imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-		imageViewCreateInfo.subresourceRange.layerCount = 1;
-
-		result = vkCreateImageView(m_Device, &imageViewCreateInfo, NULL, &buffer.m_ImageView);
-		if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
-												"Failed to create image view.");
-			vkDestroyImage(m_Device, buffer.m_Image, NULL);
-			vkFreeMemory(m_Device, buffer.m_DeviceMemory, NULL);
-			return ImageBuffer();
-		}
-
-		buffer.m_Size = memoryRequirements.size;
 		buffer.m_Initialized = true;
 
 		return buffer;

@@ -84,20 +84,17 @@ namespace cee {
 			m_AverageFrameTime *= frameIndex++;
 			m_AverageFrameTime += ts.nsec + ts.sec * 1000000000;
 			m_AverageFrameTime /= frameIndex;
+
 			for (auto& layer : m_LayerStack) {
 				layer->OnUpdate(ts);
 			};
-
-			//m_Renderer->Clear({ 1.0f, 1.0f, 1.0f, 1.0f });
-			//m_Renderer->StartFrame();
-			//m_Renderer->Draw(m_IndexBuffer, m_VertexBuffer, 6);
-			//m_Renderer->EndFrame();
 
 			Renderer3D::BeginFrame();
 			for (auto& layer : m_LayerStack) {
 				layer->OnRender();;
 			};
 			Renderer3D::EndFrame();
+
 
 			Window::PollEvents();
 			m_MessageBus.DispatchEvents();

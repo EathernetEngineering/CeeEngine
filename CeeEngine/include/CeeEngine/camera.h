@@ -14,11 +14,20 @@ namespace cee {
 		glm::mat4 GetProjection() { return m_Projection; }
 		const glm::mat4& GetProjection() const { return m_Projection; }
 
+		glm::mat4 GetTransform() { return m_Transform; }
+		const glm::mat4& GetTransform() const { return m_Transform; }
+
+		void SetPosition(const glm::vec3& position);
+		void Translate(const glm::vec3& translateBy);
+		void SetRotation(const glm::vec3& vector);
+		void Rotate(float angle, const glm::vec3& vector);
+
 	protected:
 		glm::vec3 m_Postition = { 0.0f, 0.0f, 0.0f };
 		glm::vec3 m_Rotation = { 0.0f, 0.0f, 0.0f };
 
 		glm::mat4 m_Projection;
+		glm::mat4 m_Transform;
 	};
 
 	class OrthographicCamera : public Camera {

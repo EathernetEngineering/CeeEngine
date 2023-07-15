@@ -5,6 +5,7 @@
 #include <CeeEngine/camera.h>
 
 #include <memory>
+
 namespace cee {
 	class Renderer2D {
 	public:
