@@ -1,7 +1,7 @@
 #include <CeeEngine/input.h>
 #include <CeeEngine/debugMessenger.h>
 
-#include <CeeEngine/lib/xkb.h>
+#include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
 
 namespace cee {
