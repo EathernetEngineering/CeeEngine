@@ -41,73 +41,73 @@ enum PipelineFlagsBits
 typedef uint32_t PipelineFlags;
 
 namespace cee {
-	VkFormat CeeFormatToVkFormat(::cee::ImageFormat foramt) {
+	VkFormat CeeFormatToVkFormat(::cee::Format foramt) {
 		switch (foramt) {
-			case IMAGE_FORMAT_R8_SRGB:
+			case FORMAT_R8_SRGB:
 				return VK_FORMAT_R8_SRGB;
-			case IMAGE_FORMAT_R8G8_SRGB:
+			case FORMAT_R8G8_SRGB:
 				return VK_FORMAT_R8G8_SRGB;
-			case IMAGE_FORMAT_R8G8B8_SRGB:
+			case FORMAT_R8G8B8_SRGB:
 				return VK_FORMAT_R8G8B8_SRGB;
-			case IMAGE_FORMAT_R8G8B8A8_SRGB:
+			case FORMAT_R8G8B8A8_SRGB:
 				return VK_FORMAT_R8G8B8A8_SRGB;
-			case IMAGE_FORMAT_R8_UNORM:
+			case FORMAT_R8_UNORM:
 				return VK_FORMAT_R8_UNORM;
-			case IMAGE_FORMAT_R8G8_UNORM:
+			case FORMAT_R8G8_UNORM:
 				return VK_FORMAT_R8G8_UNORM;
-			case IMAGE_FORMAT_R8G8B8_UNORM:
+			case FORMAT_R8G8B8_UNORM:
 				return VK_FORMAT_R8G8B8_UNORM;
-			case IMAGE_FORMAT_R8G8B8A8_UNORM:
+			case FORMAT_R8G8B8A8_UNORM:
 				return VK_FORMAT_R8G8B8A8_UNORM;
-			case IMAGE_FORMAT_R8_UINT:
+			case FORMAT_R8_UINT:
 				return VK_FORMAT_R8_UINT;
-			case IMAGE_FORMAT_R8G8_UINT:
+			case FORMAT_R8G8_UINT:
 				return VK_FORMAT_R8G8_UINT;
-			case IMAGE_FORMAT_R8G8B8_UINT:
+			case FORMAT_R8G8B8_UINT:
 				return VK_FORMAT_R8G8B8_UINT;
-			case IMAGE_FORMAT_R8G8B8A8_UINT:
+			case FORMAT_R8G8B8A8_UINT:
 				return VK_FORMAT_R8G8B8A8_UINT;
-			case IMAGE_FORMAT_R16_SFLOAT:
+			case FORMAT_R16_SFLOAT:
 				return VK_FORMAT_R16_SFLOAT;
-			case IMAGE_FORMAT_R16G16_SFLOAT:
+			case FORMAT_R16G16_SFLOAT:
 				return VK_FORMAT_R16G16_SFLOAT;
-			case IMAGE_FORMAT_R16G16B16_SFLOAT:
+			case FORMAT_R16G16B16_SFLOAT:
 				return VK_FORMAT_R16G16B16_SFLOAT;
-			case IMAGE_FORMAT_R16G16B16A16_SFLOAT:
+			case FORMAT_R16G16B16A16_SFLOAT:
 				return VK_FORMAT_R16G16B16A16_SFLOAT;
-			case IMAGE_FORMAT_R16_UNORM:
+			case FORMAT_R16_UNORM:
 				return VK_FORMAT_R16_UNORM;
-			case IMAGE_FORMAT_R16G16_UNORM:
+			case FORMAT_R16G16_UNORM:
 				return VK_FORMAT_R16G16_UNORM;
-			case IMAGE_FORMAT_R16G16B16_UNORM:
+			case FORMAT_R16G16B16_UNORM:
 				return VK_FORMAT_R16G16B16_UNORM;
-			case IMAGE_FORMAT_R16G16B16A16_UNORM:
+			case FORMAT_R16G16B16A16_UNORM:
 				return VK_FORMAT_R16G16B16A16_UNORM;
-			case IMAGE_FORMAT_R16_UINT:
+			case FORMAT_R16_UINT:
 				return VK_FORMAT_R16_UINT;
-			case IMAGE_FORMAT_R16G16_UINT:
+			case FORMAT_R16G16_UINT:
 				return VK_FORMAT_R16G16_UINT;
-			case IMAGE_FORMAT_R16G16B16_UINT:
+			case FORMAT_R16G16B16_UINT:
 				return VK_FORMAT_R16G16B16_UINT;
-			case IMAGE_FORMAT_R16G16B16A16_UINT:
+			case FORMAT_R16G16B16A16_UINT:
 				return VK_FORMAT_R16G16B16A16_UINT;
-			case IMAGE_FORMAT_R32_SFLOAT:
+			case FORMAT_R32_SFLOAT:
 				return VK_FORMAT_R32_SFLOAT;
-			case IMAGE_FORMAT_R32G32_SFLOAT:
+			case FORMAT_R32G32_SFLOAT:
 				return VK_FORMAT_R32G32_SFLOAT;
-			case IMAGE_FORMAT_R32G32B32_SFLOAT:
+			case FORMAT_R32G32B32_SFLOAT:
 				return VK_FORMAT_R32G32B32_SFLOAT;
-			case IMAGE_FORMAT_R32G32B32A32_SFLOAT:
+			case FORMAT_R32G32B32A32_SFLOAT:
 				return VK_FORMAT_R32G32B32A32_SFLOAT;
-			case IMAGE_FORMAT_R32_UINT:
+			case FORMAT_R32_UINT:
 				return VK_FORMAT_R32_UINT;
-			case IMAGE_FORMAT_R32G32_UINT:
+			case FORMAT_R32G32_UINT:
 				return VK_FORMAT_R32G32_UINT;
-			case IMAGE_FORMAT_R32G32B32_UINT:
+			case FORMAT_R32G32B32_UINT:
 				return VK_FORMAT_R32G32B32_UINT;
-			case IMAGE_FORMAT_R32G32B32A32_UINT:
+			case FORMAT_R32G32B32A32_UINT:
 				return VK_FORMAT_R32G32B32A32_UINT;
-			case IMAGE_FORMAT_DEPTH:
+			case FORMAT_DEPTH:
 				return Renderer::Get()->GetDepthFormat();
 			default:
 				return VK_FORMAT_UNDEFINED;
@@ -189,14 +189,16 @@ namespace cee {
 		this->m_Size = other.m_Size;
 		this->m_Buffer = other.m_Buffer;
 		this->m_DeviceMemory = other.m_DeviceMemory;
+		this->hostVisable = other.hostVisable;
 
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
 
 		other.m_Device = VK_NULL_HANDLE;
+		other.m_Size = 0;
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
-		other.m_Size = 0;
+		other.hostVisable = false;
 
 		return *this;
 	}
@@ -956,8 +958,6 @@ namespace cee {
 		return result == VK_SUCCESS ? 0 : -1;
 	}
 
-
-
 	Renderer* Renderer::s_Instance = NULL;
 
 	Renderer::Renderer(const RendererCapabilities& capabilities,
@@ -1511,7 +1511,7 @@ namespace cee {
 														   VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
 			m_DepthImage = this->CreateImageBuffer(m_SwapchainExtent.width,
 												   m_SwapchainExtent.height,
-												   IMAGE_FORMAT_DEPTH);
+												   FORMAT_DEPTH);
 		}
 		{
 
@@ -2310,7 +2310,7 @@ namespace cee {
 
 			m_ImageBuffer = this->CreateImageBuffer(imageSize.width,
 													imageSize.height,
-													IMAGE_FORMAT_R8G8B8A8_SRGB);
+													FORMAT_R8G8B8A8_SRGB);
 
 			stagingBuffer.SetData(imageSize.width * imageSize.height * 4, 0, image);
 
@@ -3412,7 +3412,7 @@ retryAqurireNextImage:
 
 			m_DepthImage = this->CreateImageBuffer(m_SwapchainExtent.width,
 												   m_SwapchainExtent.height,
-												   IMAGE_FORMAT_DEPTH);
+												   FORMAT_DEPTH);
 
 			m_Framebuffers.clear();
 			for (uint32_t i = 0; i < m_SwapchainImageCount; i++) {
@@ -3859,16 +3859,25 @@ retryAqurireNextImage:
 
 	uint32_t Renderer::ChooseMemoryType(uint32_t typeFilter,
 										const VkPhysicalDeviceMemoryProperties& deviceMemoryProperties,
-										VkMemoryPropertyFlags properties) {
+										VkMemoryPropertyFlags requiredPproperties,
+										VkMemoryPropertyFlags optimalProperties) {
+		uint32_t type = UINT32_MAX;
+		optimalProperties |= requiredPproperties;
 		for (uint32_t i = 0; i < deviceMemoryProperties.memoryTypeCount; i++) {
 			if ((typeFilter & (1 << i)) &&
-				(deviceMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+				(deviceMemoryProperties.memoryTypes[i].propertyFlags & optimalProperties) == optimalProperties)
 			{
 				return i;
 			}
+			if ((typeFilter & (1 << i)) &&
+				(deviceMemoryProperties.memoryTypes[i].propertyFlags & requiredPproperties) == requiredPproperties)
+			{
+				type = i;
+			}
 		}
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Unable to find suitable memory type.");
-		return UINT32_MAX;
+		if (type == UINT32_MAX)
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Unable to find suitable memory type.");
+		return type;
 	}
 
 	VkShaderModule Renderer::CreateShaderModule(VkDevice device, std::vector<uint8_t> shaderCode) {
@@ -3976,7 +3985,8 @@ retryAqurireNextImage:
 		imageAlloacteInfo.allocationSize = imageMemoryRequirements.size;
 		imageAlloacteInfo.memoryTypeIndex = ChooseMemoryType(imageMemoryRequirements.memoryTypeBits,
 															 m_PhysicalDeviceMemoryProperties,
-															 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+															 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+															 0);
 
 		result = vkAllocateMemory(m_Device, &imageAlloacteInfo, NULL, deviceMemory);
 		CEE_VERIFY(result == VK_SUCCESS, "Failed to create components for image. alloc.");
@@ -4120,7 +4130,8 @@ retryAqurireNextImage:
 		memoryAllocateInfo.memoryTypeIndex = ChooseMemoryType(
 			memoryRequirements.memoryTypeBits,
 			memoryProperties,
-			memoryPropertyFlags);
+			memoryPropertyFlags,
+			0);
 
 		result = vkAllocateMemory(m_Device, &memoryAllocateInfo, NULL, &memory);
 		if (result != VK_SUCCESS) {
@@ -4196,7 +4207,7 @@ retryAqurireNextImage:
 		return buffer;
 	}
 
-	ImageBuffer Renderer::CreateImageBuffer(size_t width, size_t height, ImageFormat format) {
+	ImageBuffer Renderer::CreateImageBuffer(size_t width, size_t height, Format format) {
 		ImageBuffer buffer;
 		buffer.m_Device = m_Device;
 		buffer.m_CommandPool = m_TransferCmdPool;
@@ -4204,7 +4215,7 @@ retryAqurireNextImage:
 
 		VkResult result = VK_SUCCESS;
 
-		if (format == IMAGE_FORMAT_DEPTH) {
+		if (format == FORMAT_DEPTH) {
 			result = Renderer::Get()->CreateImageObjects(&buffer.m_Image,
 														 &buffer.m_DeviceMemory,
 														 &buffer.m_ImageView,

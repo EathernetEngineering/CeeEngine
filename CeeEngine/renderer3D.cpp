@@ -216,9 +216,6 @@ namespace cee {
 							  const glm::vec4& color) {
 		glm::mat4 transform = ConstructTransformMatrix3D(translation, rotationAngle, rotationAxis, scale);
 
-		std::random_device rd;
-		std::mt19937 gen(rd());
-
 		std::array<Vertex3D, 24> vertices;
 		for (size_t i = 0 ; i < vertices.size(); i++) {
 			vertices[i].position = transform * CubeVertexPositions[i];
@@ -232,9 +229,13 @@ namespace cee {
 			vertices[i].texCoords = CubeTexCoords[i];
 			vertices[i].texIndex = CubeTexIndices[i];
 		}
+		std::array<uint32_t, 36> indices;
+		for (uint32_t i = 0; i < 36; i++) {
+			indices[i] = CubeIndices[i] + s_VertexOffset;
+		}
 
 		s_VertexStagingBuffer.SetData(vertices.size() * sizeof(Vertex3D), s_VertexOffset * sizeof(Vertex3D), vertices.data());
-		s_IndexStagingBuffer.SetData(36 * sizeof(uint32_t), s_IndexOffset * sizeof(uint32_t), CubeIndices);
+		s_IndexStagingBuffer.SetData(36 * sizeof(uint32_t), s_IndexOffset * sizeof(uint32_t), indices.data());
 		s_VertexOffset += 24;
 		s_IndexOffset += 36;
 	}

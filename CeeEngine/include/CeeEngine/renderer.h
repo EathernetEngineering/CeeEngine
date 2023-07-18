@@ -25,50 +25,50 @@
 #define CEE_RENDERER_FRAME_TIME_COUNT 100
 
 namespace cee {
-	enum ImageFormat {
-		IMAGE_FORMAT_UNDEFINED           = 0,
+	enum Format {
+		FORMAT_UNDEFINED           = 0,
 
-		IMAGE_FORMAT_R8_SRGB             = 1,
-		IMAGE_FORMAT_R8G8_SRGB           = 2,
-		IMAGE_FORMAT_R8G8B8_SRGB         = 3,
-		IMAGE_FORMAT_R8G8B8A8_SRGB       = 4,
+		FORMAT_R8_SRGB             = 1,
+		FORMAT_R8G8_SRGB           = 2,
+		FORMAT_R8G8B8_SRGB         = 3,
+		FORMAT_R8G8B8A8_SRGB       = 4,
 
-		IMAGE_FORMAT_R8_UNORM            = 5,
-		IMAGE_FORMAT_R8G8_UNORM          = 6,
-		IMAGE_FORMAT_R8G8B8_UNORM        = 7,
-		IMAGE_FORMAT_R8G8B8A8_UNORM      = 8,
+		FORMAT_R8_UNORM            = 5,
+		FORMAT_R8G8_UNORM          = 6,
+		FORMAT_R8G8B8_UNORM        = 7,
+		FORMAT_R8G8B8A8_UNORM      = 8,
 
-		IMAGE_FORMAT_R8_UINT             = 9,
-		IMAGE_FORMAT_R8G8_UINT           = 10,
-		IMAGE_FORMAT_R8G8B8_UINT         = 11,
-		IMAGE_FORMAT_R8G8B8A8_UINT       = 12,
+		FORMAT_R8_UINT             = 9,
+		FORMAT_R8G8_UINT           = 10,
+		FORMAT_R8G8B8_UINT         = 11,
+		FORMAT_R8G8B8A8_UINT       = 12,
 
-		IMAGE_FORMAT_R16_SFLOAT          = 13,
-		IMAGE_FORMAT_R16G16_SFLOAT       = 14,
-		IMAGE_FORMAT_R16G16B16_SFLOAT    = 15,
-		IMAGE_FORMAT_R16G16B16A16_SFLOAT = 16,
+		FORMAT_R16_SFLOAT          = 13,
+		FORMAT_R16G16_SFLOAT       = 14,
+		FORMAT_R16G16B16_SFLOAT    = 15,
+		FORMAT_R16G16B16A16_SFLOAT = 16,
 
-		IMAGE_FORMAT_R16_UNORM           = 17,
-		IMAGE_FORMAT_R16G16_UNORM        = 18,
-		IMAGE_FORMAT_R16G16B16_UNORM     = 19,
-		IMAGE_FORMAT_R16G16B16A16_UNORM  = 20,
+		FORMAT_R16_UNORM           = 17,
+		FORMAT_R16G16_UNORM        = 18,
+		FORMAT_R16G16B16_UNORM     = 19,
+		FORMAT_R16G16B16A16_UNORM  = 20,
 
-		IMAGE_FORMAT_R16_UINT            = 21,
-		IMAGE_FORMAT_R16G16_UINT         = 22,
-		IMAGE_FORMAT_R16G16B16_UINT      = 23,
-		IMAGE_FORMAT_R16G16B16A16_UINT   = 24,
+		FORMAT_R16_UINT            = 21,
+		FORMAT_R16G16_UINT         = 22,
+		FORMAT_R16G16B16_UINT      = 23,
+		FORMAT_R16G16B16A16_UINT   = 24,
 
-		IMAGE_FORMAT_R32_SFLOAT          = 25,
-		IMAGE_FORMAT_R32G32_SFLOAT       = 26,
-		IMAGE_FORMAT_R32G32B32_SFLOAT    = 27,
-		IMAGE_FORMAT_R32G32B32A32_SFLOAT = 28,
+		FORMAT_R32_SFLOAT          = 25,
+		FORMAT_R32G32_SFLOAT       = 26,
+		FORMAT_R32G32B32_SFLOAT    = 27,
+		FORMAT_R32G32B32A32_SFLOAT = 28,
 
-		IMAGE_FORMAT_R32_UINT            = 29,
-		IMAGE_FORMAT_R32G32_UINT         = 30,
-		IMAGE_FORMAT_R32G32B32_UINT      = 31,
-		IMAGE_FORMAT_R32G32B32A32_UINT   = 32,
+		FORMAT_R32_UINT            = 29,
+		FORMAT_R32G32_UINT         = 30,
+		FORMAT_R32G32B32_UINT      = 31,
+		FORMAT_R32G32B32A32_UINT   = 32,
 
-		IMAGE_FORMAT_DEPTH    = 128
+		FORMAT_DEPTH    = 128
 	};
 
 	enum RendererMode {
@@ -123,6 +123,8 @@ namespace cee {
 		size_t m_Size;
 		VkBuffer m_Buffer;
 		VkDeviceMemory m_DeviceMemory;
+
+		bool hostVisable;
 
 		friend Renderer;
 		friend StagingBuffer;
@@ -211,6 +213,7 @@ namespace cee {
 	public:
 		CubeMapBuffer();
 		CubeMapBuffer(uint32_t width, uint32_t height);
+		// Order: front, back, up, daown, left, right
 		CubeMapBuffer(std::vector<std::string> filenames);
 		CubeMapBuffer(const CubeMapBuffer&) = delete;
 		CubeMapBuffer(CubeMapBuffer&& other);
@@ -290,6 +293,16 @@ namespace cee {
 		friend Renderer;
 	};
 
+	enum class PrimitiveTopology {
+		None = 0,
+		Points,
+		Lines,
+		Triangles,
+		LineStrip,
+		TriangleStrip,
+		TriangleFan
+	};
+
 	class Renderer {
 	public:
 		Renderer(const RendererCapabilities& capabilities, std::shared_ptr<cee::Window> window);
@@ -362,7 +375,8 @@ namespace cee {
 												std::shared_ptr<Window> window);
 		static uint32_t ChooseMemoryType(uint32_t typeFilter,
 										 const VkPhysicalDeviceMemoryProperties& deviceMemoryProperties,
-										 VkMemoryPropertyFlags properties);
+										 VkMemoryPropertyFlags requiredProperties,
+										 VkMemoryPropertyFlags optimalProperties);
 		static VkShaderModule CreateShaderModule(VkDevice device, std::vector<uint8_t> shaderCode);
 		static std::vector<uint8_t> AttemptPipelineCacheRead(const std::string& filePath);
 		static void PipelineCacheWrite(const std::string& filePath, const std::vector<uint8_t>& cacheData);
@@ -394,7 +408,7 @@ namespace cee {
 		VertexBuffer CreateVertexBuffer(size_t size);
 		IndexBuffer CreateIndexBuffer(size_t size);
 		UniformBuffer CreateUniformBuffer(size_t size);
-		ImageBuffer CreateImageBuffer(size_t width, size_t height, ImageFormat format);
+		ImageBuffer CreateImageBuffer(size_t width, size_t height, Format format);
 		StagingBuffer CreateStagingBuffer(size_t size);
 		// **********************************
 		// ** END   Buffer Implementations **

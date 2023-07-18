@@ -52,7 +52,7 @@ void GameLayer::OnDetach()
 void GameLayer::OnUpdate(cee::Timestep t)
 {
 	(void)t;
-	m_Camera.Rotate(M_PI_4 * (float(t.nsec)/1000000000.0f), { -1.0f, 0.0f, 0.0f });
+	m_Camera.Rotate(M_PI_4 * (float(t.nsec)/1000000000.0f), { 0.0f, 1.0f, 0.0f });
 	cee::Renderer3D::UpdateCamera(m_Camera);
 }
 
@@ -64,11 +64,11 @@ void GameLayer::OnRender() {
 	}
 	float duration = (float)std::chrono::duration_cast<std::chrono::milliseconds>(start - now).count();
 	duration /= 1000.0f;
-	// cee::Renderer3D::DrawCube({ 0.3f, 0.0f, 0.0f },
-	// 						  0.0f,
-	// 						  { 0.0f, 0.0f, 0.0f },
-	// 						  { 0.6f, 0.6f, 1.0f },
-	// 						  { 1.0f, 1.0f, 1.0f, 1.0f });
+	cee::Renderer3D::DrawCube({ 4.3f, 0.0f, -5.0f },
+							  0.0f,
+							  { 0.0f, 0.0f, 0.0f },
+							  { 0.6f, 0.6f, 2.0f },
+							  { 1.0f, 1.0f, 1.0f, 1.0f });
 
 	cee::Renderer3D::DrawCube({ 0.0f, 0.0f, -5.0f },
 							  duration,
