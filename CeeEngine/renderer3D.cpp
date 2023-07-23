@@ -125,9 +125,6 @@ namespace cee {
 	VertexBuffer Renderer3D::s_VertexBuffer;
 	IndexBuffer Renderer3D::s_IndexBuffer;
 
-	StagingBuffer Renderer3D::s_VertexStagingBuffer;
-	StagingBuffer Renderer3D::s_IndexStagingBuffer;
-
 	size_t Renderer3D::s_VertexOffset = 0;
 	size_t Renderer3D::s_IndexOffset= 0;
 
@@ -164,10 +161,8 @@ namespace cee {
 		s_VertexOffset = 0;
 
 		size_t maxVertices = (6 * s_RendererCapabilities.maxIndices) / 4;
-		s_VertexStagingBuffer = s_Renderer->CreateStagingBuffer(sizeof(Vertex3D) * maxVertices);
-		s_IndexStagingBuffer = s_Renderer->CreateStagingBuffer(sizeof(uint32_t) * maxVertices);
-		s_IndexBuffer = s_Renderer->CreateIndexBuffer(sizeof(uint32_t) * s_RendererCapabilities.maxIndices);
-		s_VertexBuffer = s_Renderer->CreateVertexBuffer(sizeof(Vertex3D) * maxVertices);
+		s_IndexBuffer = IndexBuffer(sizeof(uint32_t) * s_RendererCapabilities.maxIndices);
+		s_VertexBuffer = VertexBuffer(sizeof(Vertex3D) * maxVertices);
 
 		CubeMapBuffer cubeMapBuffer({
 			"/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/textures/elyvisions/skype_ft.png",
@@ -185,8 +180,6 @@ namespace cee {
 
 	void Renderer3D::Shutdown() {
 		s_VertexBuffer = VertexBuffer();
-		s_VertexStagingBuffer = StagingBuffer();
-		s_IndexStagingBuffer = StagingBuffer();
 		s_IndexBuffer = IndexBuffer();
 		s_Renderer.reset();
 	}
@@ -197,8 +190,6 @@ namespace cee {
 	}
 
 	void Renderer3D::Flush() {
-		s_VertexStagingBuffer.TransferData(s_VertexBuffer, 0, 0, s_VertexOffset * sizeof(Vertex3D));
-		s_IndexStagingBuffer.TransferData(s_IndexBuffer, 0, 0, s_IndexOffset * sizeof(uint32_t));
 		s_Renderer->Draw(s_IndexBuffer, s_VertexBuffer, s_IndexOffset);
 		s_VertexOffset = 0;
 		s_IndexOffset = 0;
@@ -234,8 +225,8 @@ namespace cee {
 			indices[i] = CubeIndices[i] + s_VertexOffset;
 		}
 
-		s_VertexStagingBuffer.SetData(vertices.size() * sizeof(Vertex3D), s_VertexOffset * sizeof(Vertex3D), vertices.data());
-		s_IndexStagingBuffer.SetData(36 * sizeof(uint32_t), s_IndexOffset * sizeof(uint32_t), indices.data());
+		s_VertexBuffer.SetData(vertices.size() * sizeof(Vertex3D), s_VertexOffset * sizeof(Vertex3D), vertices.data());
+		s_IndexBuffer.SetData(36 * sizeof(uint32_t), s_IndexOffset * sizeof(uint32_t), indices.data());
 		s_VertexOffset += 24;
 		s_IndexOffset += 36;
 	}

@@ -35,9 +35,6 @@ namespace cee {
 		static VertexBuffer s_VertexBuffer;
 		static IndexBuffer s_IndexBuffer;
 
-		static StagingBuffer s_VertexStagingBuffer;
-		static StagingBuffer s_IndexStagingBuffer;
-
 		static size_t s_VertexOffset;
 		static size_t s_IndexOffset;
 

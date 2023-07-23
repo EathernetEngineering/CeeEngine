@@ -55,7 +55,13 @@ namespace cee {
 
 	void PerspectiveCamera::SetFov(float newFov) {
 		m_Fov = newFov;
-		m_Projection = glm::perspective(glm::radians(newFov), m_AspectRatio, m_NearZ, m_FarZ);
+		m_Projection = glm::perspective(glm::radians(m_Fov), m_AspectRatio, m_NearZ, m_FarZ);
+		m_Projection[1][1] *= -1.0f;
+	}
+
+	void PerspectiveCamera::SetAspectRatio(float newAspectRatio) {
+		m_AspectRatio = newAspectRatio;
+		m_Projection = glm::perspective(glm::radians(m_Fov), m_AspectRatio, m_NearZ, m_FarZ);
 		m_Projection[1][1] *= -1.0f;
 	}
 

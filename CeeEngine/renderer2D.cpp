@@ -8,8 +8,6 @@ namespace cee {
 	VertexBuffer Renderer2D::s_VertexBuffer;
 	IndexBuffer Renderer2D::s_IndexBuffer;
 
-	StagingBuffer Renderer2D::s_StagingBuffer;
-
 	size_t Renderer2D::s_VertexOffset = 0;
 	size_t Renderer2D::s_Index= 0;
 
@@ -46,9 +44,8 @@ namespace cee {
 		s_VertexOffset = 0;
 
 		size_t maxVertices = (6 * s_RendererCapabilities.maxIndices) / 4;
-		s_StagingBuffer = s_Renderer->CreateStagingBuffer(sizeof(Vertex2D) * maxVertices);
-		s_IndexBuffer = s_Renderer->CreateIndexBuffer(sizeof(uint32_t) * s_RendererCapabilities.maxIndices);
-		s_VertexBuffer = s_Renderer->CreateVertexBuffer(sizeof(Vertex2D) * maxVertices);
+		s_IndexBuffer = IndexBuffer(sizeof(uint32_t) * s_RendererCapabilities.maxIndices);
+		s_VertexBuffer = VertexBuffer(sizeof(Vertex2D) * maxVertices);
 
 		uint32_t* indices = new uint32_t[s_RendererCapabilities.maxIndices];
 		size_t offset = 0, index = 0;
@@ -63,8 +60,7 @@ namespace cee {
 			index += 4;
 		}
 
-		s_StagingBuffer.SetData(sizeof(uint32_t) * s_RendererCapabilities.maxIndices, 0, indices);
-		s_StagingBuffer.TransferData(s_IndexBuffer, 0, 0, sizeof(uint32_t) * s_RendererCapabilities.maxIndices);
+		s_IndexBuffer.SetData(sizeof(uint32_t) * s_RendererCapabilities.maxIndices, 0, indices);
 
 		delete[] indices;
 
@@ -73,7 +69,6 @@ namespace cee {
 
 	void Renderer2D::Shutdown() {
 		s_VertexBuffer = VertexBuffer();
-		s_StagingBuffer = StagingBuffer();
 		s_IndexBuffer = IndexBuffer();
 		s_Renderer.reset();
 	}
@@ -84,7 +79,6 @@ namespace cee {
 	}
 
 	void Renderer2D::Flush() {
-		s_StagingBuffer.TransferData(s_VertexBuffer, 0, 0, s_VertexOffset * sizeof(Vertex2D));
 		s_Renderer->Draw(s_IndexBuffer, s_VertexBuffer, s_Index);
 		s_VertexOffset = 0;
 		s_Index = 0;
@@ -128,7 +122,7 @@ namespace cee {
 		vertices[3].color = color;
 		vertices[3].texCoords = uv[3];
 
-		s_StagingBuffer.SetData(sizeof(vertices), s_VertexOffset * sizeof(Vertex2D), vertices);
+		s_VertexBuffer.SetData(sizeof(vertices), s_VertexOffset * sizeof(Vertex2D), vertices);
 		s_VertexOffset += 4;
 		s_Index += 6;
 	}

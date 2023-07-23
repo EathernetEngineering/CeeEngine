@@ -46,6 +46,9 @@ namespace cee {
 		void SetFov(float newFov);
 		float GetFov() const { return m_Fov; }
 
+		void SetAspectRatio(float newAspectRatio);
+		float GetAspectRatio() const { return m_AspectRatio; }
+
 	private:
 		float m_Fov, m_AspectRatio, m_NearZ, m_FarZ;
 	};

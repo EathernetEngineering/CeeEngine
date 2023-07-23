@@ -91,7 +91,17 @@ void GameLayer::OnDisable()
 
 void GameLayer::MessageHandler(cee::Event& e)
 {
-	(void)e;
+	switch(e.GetEventType()) {
+		case cee::EventType::WindowResize:
+		{
+			cee::WindowResizeEvent& event = dynamic_cast<cee::WindowResizeEvent&>(e);
+			m_Camera.SetAspectRatio((float)event.GetWidth() / (float)event.GetHeight());
+		}
+		break;
+
+	default:
+			return;
+	}
 }
 
 

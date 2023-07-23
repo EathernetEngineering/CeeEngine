@@ -3,15 +3,12 @@
 
 #include <CeeEngine/window.h>
 #include <CeeEngine/messageBus.h>
+#include <CeeEngine/debugMessenger.h>
 #include <CeeEngine/camera.h>
+#include <CeeEngine/assert.h>
 
 #include <CeeEngine/platform.h>
 
-#if defined(CEE_PLATFORM_WINDOWS)
-#define VK_USE_PLATFORM_WIN32_KHR
-#elif defined(CEE_PLATFORM_LINUX)
-#define VK_USE_PLATFORM_XCB_KHR
-#endif
 #include <vulkan/vulkan.h>
 
 #include <cstdint>
@@ -105,15 +102,113 @@ namespace cee {
 	class Renderer;
 	class StagingBuffer;
 
+	enum class ShaderDataType {
+		None = 0,
+		Float, Float2, Float3, Float4,
+		Mat3, Mat4,
+		Int, Int2, Int3, Int4,
+		Bool
+	};
+
+	inline size_t GetShaderDataTypeSize(ShaderDataType type) {
+		switch (type) {
+			case ShaderDataType::Float:  return 4 * 1;
+			case ShaderDataType::Float2: return 4 * 2;
+			case ShaderDataType::Float3: return 4 * 3;
+			case ShaderDataType::Float4: return 4 * 4;
+			case ShaderDataType::Mat3:   return 4 * 3 * 3;
+			case ShaderDataType::Mat4:   return 4 * 4 * 4;
+			case ShaderDataType::Int:    return 4 * 1;
+			case ShaderDataType::Int2:   return 4 * 2;
+			case ShaderDataType::Int3:   return 4 * 3;
+			case ShaderDataType::Int4:   return 4 * 4;
+			case ShaderDataType::Bool:   return 1;
+			default:
+			{
+				CEE_ASSERT(false, "Calling GetShaderDataTypeSize() with an invald type.");
+				return -1ull;
+			}
+		}
+	}
+
+	inline size_t GetShaderDataTypeComponentCount(ShaderDataType type) {
+		switch (type) {
+			case ShaderDataType::Float:  return 1;
+			case ShaderDataType::Float2: return 2;
+			case ShaderDataType::Float3: return 3;
+			case ShaderDataType::Float4: return 4;
+			case ShaderDataType::Mat3:   return 3 * 3;
+			case ShaderDataType::Mat4:   return 4 * 4;
+			case ShaderDataType::Int:    return 1;
+			case ShaderDataType::Int2:   return 2;
+			case ShaderDataType::Int3:   return 3;
+			case ShaderDataType::Int4:   return 4;
+			case ShaderDataType::Bool:   return 1;
+			default:
+			{
+				CEE_ASSERT(false, "Calling GetShaderDataTypeSize() with an invald type.");
+				return -1ull;
+			}
+		}
+	}
+
+	struct VertexBufferAttribute {
+		ShaderDataType type;
+		uint32_t size;
+		uint32_t offset;
+
+		bool normalized;
+
+		VertexBufferAttribute(ShaderDataType type, bool normalized = false)
+		: type(type), size(GetShaderDataTypeSize(type)), normalized(normalized)
+		{ }
+	};
+
+	struct VertexBufferLayout {
+		VertexBufferLayout(std::initializer_list<VertexBufferAttribute> attibutes)
+		: m_Attributes(attibutes)
+		{
+			CalculateOffsetAndStride();
+		}
+
+	private:
+		void CalculateOffsetAndStride() {
+			uint32_t offset = 0;
+			m_Stride = 0;
+			for (auto& attribute : m_Attributes) {
+				attribute.offset = offset;
+				offset += attribute.size;
+				m_Stride += attribute.size;
+			}
+		}
+
+
+	private:
+		std::vector<VertexBufferAttribute> m_Attributes;
+		uint32_t m_Stride;
+	};
+
 	class VertexBuffer {
 	public:
 		VertexBuffer();
+		VertexBuffer(size_t size, bool persistantlyMapped = false);
 		VertexBuffer(const VertexBuffer&) = delete;
 		VertexBuffer(VertexBuffer&& other);
 		~VertexBuffer();
 
 		VertexBuffer& operator=(const VertexBuffer&) = delete;
 		VertexBuffer& operator=(VertexBuffer&& other);
+
+		void SetData(size_t size, size_t offset, const void* data);
+
+	private:
+		void FlushMemory();
+		void MapMemory();
+		void UnmapMemory();
+
+		// To use this buffer for buffer copy/usage, this function should be
+		// called instead of accessing member directly as it flushes data to the GPU.
+		VkBuffer& GetBuffer() { FlushMemory(); return m_Buffer; }
 
 	private:
 		bool m_Initialized;
@@ -124,7 +219,10 @@ namespace cee {
 		VkBuffer m_Buffer;
 		VkDeviceMemory m_DeviceMemory;
 
-		bool hostVisable;
+		bool m_HostVisable;
+		std::optional<void*> m_HostMappedAddress;
+
+		bool m_PersistantlyMapped;
 
 		friend Renderer;
 		friend StagingBuffer;
@@ -133,12 +231,22 @@ namespace cee {
 	class IndexBuffer {
 	public:
 		IndexBuffer();
+		IndexBuffer(size_t size, bool persistantlyMapped = false);
 		IndexBuffer(const IndexBuffer&) = delete;
 		IndexBuffer(IndexBuffer&& other);
 		~IndexBuffer();
 
 		IndexBuffer& operator=(const IndexBuffer&) = delete;
 		IndexBuffer& operator=(IndexBuffer&& other);
+
+		void SetData(size_t size, size_t offset, const void* data);
+
+	private:
+		void FlushMemory();
+		void MapMemory();
+		void UnmapMemory();
+
+		VkBuffer GetBuffer() { FlushMemory(); return m_Buffer; }
 
 	private:
 		bool m_Initialized;
@@ -148,6 +256,11 @@ namespace cee {
 		size_t m_Size;
 		VkBuffer m_Buffer;
 		VkDeviceMemory m_DeviceMemory;
+
+		bool m_HostVisable;
+		std::optional<void*> m_HostMappedAddress;
+
+		bool m_PersistantlyMapped;
 
 		friend Renderer;
 		friend StagingBuffer;
@@ -156,12 +269,22 @@ namespace cee {
 	class UniformBuffer {
 	public:
 		UniformBuffer();
+		UniformBuffer(size_t size, bool persistantlyMapped = false);
 		UniformBuffer(const UniformBuffer&) = delete;
 		UniformBuffer(UniformBuffer&& other);
 		~UniformBuffer();
 
 		UniformBuffer& operator=(const UniformBuffer&) = delete;
 		UniformBuffer& operator=(UniformBuffer&& other);
+
+		void SetData(size_t size, size_t offset, const void* data);
+
+	private:
+		void FlushMemory();
+		void MapMemory();
+		void UnmapMemory();
+
+		VkBuffer GetBuffer() { FlushMemory(); return m_Buffer; }
 
 	private:
 		bool m_Initialized;
@@ -171,6 +294,11 @@ namespace cee {
 		size_t m_Size;
 		VkBuffer m_Buffer;
 		VkDeviceMemory m_DeviceMemory;
+
+		bool m_HostVisable;
+		std::optional<void*> m_HostMappedAddress;
+
+		bool m_PersistantlyMapped;
 
 		friend Renderer;
 		friend StagingBuffer;
@@ -303,6 +431,16 @@ namespace cee {
 		TriangleFan
 	};
 
+	struct PipelineSpecification {
+		PrimitiveTopology topology;
+
+		std::string debugName;
+	};
+
+	class Pipeline {
+
+	};
+
 	class Renderer {
 	public:
 		Renderer(const RendererCapabilities& capabilities, std::shared_ptr<cee::Window> window);
@@ -319,7 +457,7 @@ namespace cee {
 		int EndFrame();
 
 		// Binds the vertex buffer and index buffer and called vulkans DrawIndexedInstanced().
-		int Draw(const IndexBuffer& indexBuffer, const VertexBuffer& vertexBuffer, uint32_t indexCount);
+		int Draw(IndexBuffer& indexBuffer, VertexBuffer& vertexBuffer, uint32_t indexCount);
 
 		int UpdateCamera(Camera& camera);
 		void UpdateSkybox(CubeMapBuffer& newSkybox);
@@ -376,7 +514,8 @@ namespace cee {
 		static uint32_t ChooseMemoryType(uint32_t typeFilter,
 										 const VkPhysicalDeviceMemoryProperties& deviceMemoryProperties,
 										 VkMemoryPropertyFlags requiredProperties,
-										 VkMemoryPropertyFlags optimalProperties);
+										 VkMemoryPropertyFlags optimalProperties,
+										 bool* optimalSelected);
 		static VkShaderModule CreateShaderModule(VkDevice device, std::vector<uint8_t> shaderCode);
 		static std::vector<uint8_t> AttemptPipelineCacheRead(const std::string& filePath);
 		static void PipelineCacheWrite(const std::string& filePath, const std::vector<uint8_t>& cacheData);
@@ -388,6 +527,10 @@ namespace cee {
 									VkFormat format, VkImageUsageFlags usage,
 									uint32_t* width, uint32_t* height, size_t* size,
 									uint32_t mipLevels, uint32_t layers);
+		VkResult CreateBufferObjects(VkBuffer* buffer, VkDeviceMemory* deviceMemory, size_t* size,
+									 VkBufferUsageFlags usage,
+									 VkMemoryPropertyFlags requiredMemoryPropertyFlags,
+									 VkMemoryPropertyFlags optimalMemoryPropertyFlags, bool* optimalMemory);
 		int TransitionImageLayout(VkImage image,
 								  VkImageLayout oldLayout,
 								  VkImageLayout newLayout);
@@ -405,9 +548,6 @@ namespace cee {
 		int CreateCommonBuffer(VkBuffer& buffer, VkDeviceMemory& memory, VkBufferUsageFlags usage, size_t size);
 
 	public:
-		VertexBuffer CreateVertexBuffer(size_t size);
-		IndexBuffer CreateIndexBuffer(size_t size);
-		UniformBuffer CreateUniformBuffer(size_t size);
 		ImageBuffer CreateImageBuffer(size_t width, size_t height, Format format);
 		StagingBuffer CreateStagingBuffer(size_t size);
 		// **********************************
@@ -458,7 +598,6 @@ namespace cee {
 		VkDescriptorSetLayout m_UniformDescriptorSetLayout;
 		VkDescriptorSetLayout m_ImageDescriptorSetLayout;
 		std::vector<VkDescriptorSet> m_UniformDescriptorSets;
-		StagingBuffer m_UniformStagingBuffer;
 		std::vector<VkDescriptorSet> m_ImageDescriptorSets;
 
 		VkSampler m_Sampler;

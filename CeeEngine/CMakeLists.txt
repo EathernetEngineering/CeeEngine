@@ -16,6 +16,7 @@ elseif(UNIX AND NOT APPLE)
 	list(APPEND LIBRARIES m pthread)
 	list(APPEND LIBRARIES ${X11_LIBRARIES} xkbcommon xkbcommon-x11)
 	list(APPEND INCLUDES ${X11_INCLUDE_DIRS})
+	list(APPEND DEFINES VK_USE_PLATFORM_XCB_KHR)
 elseif(APPLE)
 	message(STATUS ">>> APPLE BUILD")
 else()
@@ -31,6 +32,7 @@ list(APPEND SOURCES application.cpp layer.cpp timestep.cpp window.cpp renderer.c
 list(APPEND INCLUDES include/ ${Vulkan_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/vendor/glm/include)
 list(APPEND LIBRARIES ${Vulkan_LIBRARY})
 
+
 list(APPEND SOURCES ${CMAKE_SOURCE_DIR}/vendor/tracy/public/TracyClient.cpp)
 list(APPEND INCLUDES ${CMAKE_SOURCE_DIR}/vendor/tracy/public/tracy/)
 
@@ -45,6 +47,6 @@ target_link_libraries(CeeEngine PUBLIC ${LIBRARIES})
 
 target_include_directories(CeeEngine INTERFACE include/)
 
-target_compile_definitions(CeeEngine PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_FORCE_RADIANS TRACY_ENABLE)
+target_compile_definitions(CeeEngine PUBLIC ${DEFINES} GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_FORCE_RADIANS TRACY_ENABLE)
 
 install(TARGETS CeeEngine RUNTIME DESTINATION bin)

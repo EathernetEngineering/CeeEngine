@@ -41,6 +41,20 @@ enum PipelineFlagsBits
 typedef uint32_t PipelineFlags;
 
 namespace cee {
+	void FlushBufferMemory(size_t size, size_t offset, VkDeviceMemory deviceMemory) {
+		VkMappedMemoryRange range = {
+				.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+				.pNext = NULL,
+				.memory = deviceMemory,
+				.offset = offset,
+				.size = size
+			};
+			VkResult result = vkFlushMappedMemoryRanges(Renderer::Get()->GetDevice(), 1, &range);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to flush mapped memory.");
+	}
+
+
+
 	VkFormat CeeFormatToVkFormat(::cee::Format foramt) {
 		switch (foramt) {
 			case FORMAT_R8_SRGB:
@@ -162,8 +176,20 @@ namespace cee {
 
 	VertexBuffer::VertexBuffer()
 	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(0),
-	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE)
+	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false)
 	{
+	}
+
+	VertexBuffer::VertexBuffer(size_t size, bool persistantlyMapped)
+	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(size),
+	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
+	  m_PersistantlyMapped(persistantlyMapped)
+	{
+		Renderer::Get()->CreateBufferObjects(&m_Buffer, &m_DeviceMemory, &m_Size,
+											 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+											 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+											 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &m_HostVisable);
+		m_Initialized = true;
 	}
 
 	VertexBuffer::VertexBuffer(VertexBuffer&& other)
@@ -174,9 +200,12 @@ namespace cee {
 
 	VertexBuffer::~VertexBuffer() {
 		if (m_Initialized) {
-			vkDeviceWaitIdle(m_Device);
-			vkDestroyBuffer(m_Device, m_Buffer, NULL);
-			vkFreeMemory(m_Device, m_DeviceMemory, NULL);
+			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
+			if (m_HostMappedAddress.has_value()) {
+				vkUnmapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory);
+			}
+			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
+			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
 		}
 	}
 
@@ -189,7 +218,9 @@ namespace cee {
 		this->m_Size = other.m_Size;
 		this->m_Buffer = other.m_Buffer;
 		this->m_DeviceMemory = other.m_DeviceMemory;
-		this->hostVisable = other.hostVisable;
+		this->m_HostVisable = other.m_HostVisable;
+		this->m_HostMappedAddress = other.m_HostMappedAddress;
+		this->m_PersistantlyMapped = other.m_PersistantlyMapped;
 
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
@@ -198,15 +229,65 @@ namespace cee {
 		other.m_Size = 0;
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
-		other.hostVisable = false;
-
+		other.m_HostVisable = false;
+		other.m_HostMappedAddress.reset();
+		other.m_PersistantlyMapped = false;
+;
 		return *this;
+	}
+
+	void VertexBuffer::SetData(size_t size, size_t offset, const void* data) {
+		if (m_HostVisable) {
+			if (!m_HostMappedAddress.has_value()) {
+				MapMemory();
+			}
+			memcpy((uint8_t*)m_HostMappedAddress.value_or(nullptr) + offset, data, size);
+			if (!m_PersistantlyMapped) {
+				UnmapMemory();
+			}
+		} else {
+			// TODO: Create a staging buffer, copy data, then destroy staging buffer.
+			// OR: Create a staging buffer, then only destroy on destruction of this.
+		}
+	}
+
+	void VertexBuffer::FlushMemory() {
+		FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+	}
+
+	void VertexBuffer::MapMemory() {
+		if (!m_HostMappedAddress.has_value()) {
+			void* address;
+			VkResult result = vkMapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, 0, m_Size, 0, &address);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to map memory.");
+			m_HostMappedAddress = address;
+		}
+	}
+
+	void VertexBuffer::UnmapMemory() {
+		if (m_HostMappedAddress.has_value()) {
+				FlushMemory();
+				vkUnmapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory);
+				m_HostMappedAddress.reset();
+			}
 	}
 
 	IndexBuffer::IndexBuffer()
 	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(0),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE)
 	{
+	}
+
+	IndexBuffer::IndexBuffer(size_t size, bool persistantlyMapped)
+	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(size),
+	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE),
+	  m_PersistantlyMapped(persistantlyMapped)
+	{
+		Renderer::Get()->CreateBufferObjects(&m_Buffer, &m_DeviceMemory, &m_Size,
+											 VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+											 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+											 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &m_HostVisable);
+		m_Initialized = true;
 	}
 
 	IndexBuffer::IndexBuffer(IndexBuffer&& other)
@@ -217,9 +298,9 @@ namespace cee {
 
 	IndexBuffer::~IndexBuffer() {
 		if (m_Initialized) {
-			vkDeviceWaitIdle(m_Device);
-			vkDestroyBuffer(m_Device, m_Buffer, NULL);
-			vkFreeMemory(m_Device, m_DeviceMemory, NULL);
+			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
+			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
+			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
 		}
 	}
 
@@ -232,6 +313,9 @@ namespace cee {
 		this->m_Size = other.m_Size;
 		this->m_Buffer = other.m_Buffer;
 		this->m_DeviceMemory = other.m_DeviceMemory;
+		this->m_HostMappedAddress = other.m_HostMappedAddress;
+		this->m_HostVisable = other.m_HostVisable;
+		this->m_PersistantlyMapped = other.m_PersistantlyMapped;
 
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
@@ -240,14 +324,65 @@ namespace cee {
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
 		other.m_Size = 0;
+		other.m_HostMappedAddress.reset();
+		other.m_HostVisable = false;
+		other.m_PersistantlyMapped = false;
 
 		return *this;
+	}
+
+	void IndexBuffer::SetData(size_t size, size_t offset, const void* data) {
+		if (m_HostVisable) {
+			if (!m_HostMappedAddress.has_value()) {
+				MapMemory();
+			}
+			memcpy((uint8_t*)m_HostMappedAddress.value_or(nullptr) + offset, data, size);
+			if (!m_PersistantlyMapped) {
+				UnmapMemory();
+			}
+		} else {
+			// TODO: Create a staging buffer, copy data, then destroy staging buffer.
+			// OR: Create a staging buffer, then only destroy on destruction of this.
+		}
+	}
+
+	void IndexBuffer::FlushMemory() {
+		FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+	}
+
+	void IndexBuffer::MapMemory() {
+		if (!m_HostMappedAddress.has_value()) {
+			void* address;
+			VkResult result = vkMapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, 0, m_Size, 0, &address);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to map memory.");
+			m_HostMappedAddress = address;
+		}
+	}
+
+	void IndexBuffer::UnmapMemory() {
+		if (m_HostMappedAddress.has_value()) {
+				FlushMemory();
+				vkUnmapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory);
+				m_HostMappedAddress.reset();
+			}
 	}
 
 	UniformBuffer::UniformBuffer()
 	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(0),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE)
 	{
+	}
+
+	UniformBuffer::UniformBuffer(size_t size, bool persistantlyMapped)
+	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(size),
+	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE),
+	  m_PersistantlyMapped(persistantlyMapped)
+	{
+		Renderer::Get()->CreateBufferObjects(&m_Buffer, &m_DeviceMemory, &m_Size,
+											 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+											 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+											 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &m_HostVisable);
+		m_Initialized = true;
 	}
 
 	UniformBuffer::UniformBuffer(UniformBuffer&& other)
@@ -258,9 +393,9 @@ namespace cee {
 
 	UniformBuffer::~UniformBuffer() {
 		if (m_Initialized) {
-			vkDeviceWaitIdle(m_Device);
-			vkDestroyBuffer(m_Device, m_Buffer, NULL);
-			vkFreeMemory(m_Device, m_DeviceMemory, NULL);
+			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
+			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
+			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
 		}
 	}
 
@@ -273,6 +408,8 @@ namespace cee {
 		this->m_Size = other.m_Size;
 		this->m_Buffer = other.m_Buffer;
 		this->m_DeviceMemory = other.m_DeviceMemory;
+		this->m_HostMappedAddress = other.m_HostMappedAddress;
+		this->m_HostVisable = other.m_HostVisable;
 
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
@@ -281,8 +418,46 @@ namespace cee {
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
 		other.m_Size = 0;
+		other.m_HostMappedAddress.reset();
+		other.m_HostVisable = false;
 
 		return *this;
+	}
+
+	void UniformBuffer::SetData(size_t size, size_t offset, const void* data) {
+		if (m_HostVisable) {
+			if (!m_HostMappedAddress.has_value()) {
+				MapMemory();
+			}
+			memcpy((uint8_t*)m_HostMappedAddress.value_or(nullptr) + offset, data, size);
+			if (!m_PersistantlyMapped) {
+				UnmapMemory();
+			}
+		} else {
+			// TODO: Create a staging buffer, copy data, then destroy staging buffer.
+			// OR: Create a staging buffer, then only destroy on destruction of this.
+		}
+	}
+
+	void UniformBuffer::FlushMemory() {
+		FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+	}
+
+	void UniformBuffer::MapMemory() {
+		if (!m_HostMappedAddress.has_value()) {
+			void* address;
+			VkResult result = vkMapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, 0, m_Size, 0, &address);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to map memory.");
+			m_HostMappedAddress = address;
+		}
+	}
+
+	void UniformBuffer::UnmapMemory() {
+		if (m_HostMappedAddress.has_value()) {
+				FlushMemory();
+				vkUnmapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory);
+				m_HostMappedAddress.reset();
+			}
 	}
 
 	ImageBuffer::ImageBuffer()
@@ -2317,7 +2492,7 @@ namespace cee {
 			stagingBuffer.TransferDataImmediate(m_ImageBuffer, 0, 0, imageSize.width, imageSize.height);
 			free(image);
 
-			m_UniformBuffer = this->CreateUniformBuffer(2 * sizeof(glm::mat4));
+			m_UniformBuffer = UniformBuffer(2 * sizeof(glm::mat4), true);
 			glm::mat4 view(1.0f);
 
 			glm::mat4 perspeciveViewMatrix = glm::perspective(glm::radians(90.0f),
@@ -2326,12 +2501,8 @@ namespace cee {
 																 0.001f,
 																 256.0f);
 			perspeciveViewMatrix[1][1] *= -1.0f;
-			stagingBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(view));
-			stagingBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(perspeciveViewMatrix));
-			stagingBuffer.TransferDataImmediate(m_UniformBuffer, 0, 0, 2 * sizeof(glm::mat4));
-			m_UniformStagingBuffer = this->CreateStagingBuffer(sizeof(glm::mat4) * 2);
-			m_UniformStagingBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(view));
-			m_UniformStagingBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(perspeciveViewMatrix));
+			m_UniformBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(view));
+			m_UniformBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(perspeciveViewMatrix));
 		}
 		// Skybox resources
 		{
@@ -2339,23 +2510,18 @@ namespace cee {
 			m_Skybox = CubeMapBuffer(m_SwapchainExtent.width, m_SwapchainExtent.width);
 			m_Skybox.Clear({ 0.2f, 0.0f, 0.8f, 1.0f });
 
-			m_SkyboxUniformBuffer = CreateUniformBuffer(sizeof(glm::mat4) * 2);
-
-			m_SkyboxVertexBuffer = CreateVertexBuffer(6 * sizeof(glm::vec3));
-			StagingBuffer skyboxStagingBuffer = CreateStagingBuffer(6 * sizeof(glm::vec3));
+			m_SkyboxUniformBuffer = UniformBuffer(sizeof(glm::mat4) * 2, true);
+			m_SkyboxVertexBuffer = VertexBuffer(6 * sizeof(glm::vec3));
 
 			constexpr glm::vec3 skyboxVertices[] = {
 				{ -1.0f,  1.0f,  1.0f }, {  1.0f,  1.0f,  1.0f }, {  1.0f, -1.0f,  1.0f }, // font face
 				{  1.0f, -1.0f,  1.0f }, { -1.0f, -1.0f,  1.0f }, { -1.0f,  1.0f,  1.0f },
 			};
-			skyboxStagingBuffer.SetData(6 * sizeof(glm::vec3), 0, skyboxVertices);
-			skyboxStagingBuffer.TransferDataImmediate(m_SkyboxVertexBuffer, 0, 0, 6 * sizeof(glm::vec3));
-			skyboxStagingBuffer = CreateStagingBuffer(sizeof(glm::mat4) * 2);
+			m_SkyboxVertexBuffer.SetData(6 * sizeof(glm::vec3), 0, skyboxVertices);
+
 			glm::mat4 identity(1.0f);
-			skyboxStagingBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(identity));
-			skyboxStagingBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(identity));
-			skyboxStagingBuffer.TransferDataImmediate(m_SkyboxUniformBuffer, 0, 0, sizeof(glm::mat4) * 2);
-			skyboxStagingBuffer = StagingBuffer();
+			m_SkyboxUniformBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(identity));
+			m_SkyboxUniformBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(identity));
 
 
 			std::array<VkDescriptorSetLayoutBinding, 2> skyboxDescriptorSetLayoutBidnings;
@@ -2668,7 +2834,7 @@ namespace cee {
 			CEE_VERIFY(result == VK_SUCCESS, "Failed to create pipeline for skybox.");
 
 			VkDescriptorBufferInfo uniformDescriptor = {
-				.buffer = m_SkyboxUniformBuffer.m_Buffer,
+				.buffer = m_SkyboxUniformBuffer.GetBuffer(),
 				.offset = 0,
 				.range = m_SkyboxUniformBuffer.m_Size
 			};
@@ -2723,7 +2889,7 @@ namespace cee {
 		}
 		{
 			VkDescriptorBufferInfo bufferInfo = {};
-			bufferInfo.buffer = m_UniformBuffer.m_Buffer;
+			bufferInfo.buffer = m_UniformBuffer.GetBuffer();
 			bufferInfo.offset = 0;
 			bufferInfo.range = VK_WHOLE_SIZE;
 
@@ -2827,7 +2993,6 @@ namespace cee {
 	void Renderer::Shutdown()
 	{
 		m_ImageBuffer = ImageBuffer();
-		m_UniformStagingBuffer = StagingBuffer();
 		m_UniformBuffer = UniformBuffer();
 		m_Skybox = CubeMapBuffer();
 		m_SkyboxUniformBuffer = UniformBuffer();
@@ -2910,7 +3075,7 @@ retryAqurireNextImage:
 									   VK_NULL_HANDLE,
 									   &m_ImageIndex);
 		if (result == VK_SUBOPTIMAL_KHR) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO,
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG,
 											 "Suboptimal KHR... Will recreate swapchain before next frame.");
 			m_RecreateSwapchain = true;
 		} else if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -3163,7 +3328,7 @@ retryAqurireNextImage:
 
 			result = vkQueuePresentKHR(m_PresentQueue, &presentInfo);
 			if (result == VK_SUBOPTIMAL_KHR) {
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO,
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG,
 												"Suboptimal KHR... Will recreate swapchain before next frame.");
 				m_RecreateSwapchain = true;
 			} else if (result != VK_SUCCESS) {
@@ -3180,12 +3345,12 @@ retryAqurireNextImage:
 		return 0;
 	}
 
-	int Renderer::Draw(const IndexBuffer& indexBuffer, const VertexBuffer& vertexBuffer, uint32_t indexCount) {
+	int Renderer::Draw(IndexBuffer& indexBuffer, VertexBuffer& vertexBuffer, uint32_t indexCount) {
 		ZoneScoped;
 
-		vkCmdBindIndexBuffer(m_GeomertyDrawCmdBuffers[m_FrameIndex], indexBuffer.m_Buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(m_GeomertyDrawCmdBuffers[m_FrameIndex], indexBuffer.GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 		size_t offset = 0;
-		vkCmdBindVertexBuffers(m_GeomertyDrawCmdBuffers[m_FrameIndex], 0, 1, &vertexBuffer.m_Buffer, &offset);
+		vkCmdBindVertexBuffers(m_GeomertyDrawCmdBuffers[m_FrameIndex], 0, 1, &vertexBuffer.GetBuffer(), &offset);
 
 		vkCmdDrawIndexed(m_GeomertyDrawCmdBuffers[m_FrameIndex], indexCount, 1, 0, 0, 0);
 
@@ -3198,13 +3363,17 @@ retryAqurireNextImage:
 		VkFence WaitFences[] = { m_InFlightFences[m_FrameIndex] };
 		vkWaitForFences(m_Device, 1, WaitFences, VK_TRUE, UINT64_MAX);
 
-		m_UniformStagingBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(camera.GetTransform()));
-		m_UniformStagingBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(camera.GetProjection()));
-		m_UniformStagingBuffer.TransferData(m_UniformBuffer, 0, 0, sizeof(glm::mat4) * 2);
-		m_UniformStagingBuffer.TransferData(m_SkyboxUniformBuffer, 0, 0, sizeof(glm::mat4) * 2);
+		//m_UniformStagingBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(camera.GetTransform()));
+		//m_UniformStagingBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(camera.GetProjection()));
+		//m_UniformStagingBuffer.TransferData(m_UniformBuffer, 0, 0, sizeof(glm::mat4) * 2);
+		//m_UniformStagingBuffer.TransferData(m_SkyboxUniformBuffer, 0, 0, sizeof(glm::mat4) * 2);
+		m_UniformBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(camera.GetTransform()));
+		m_UniformBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(camera.GetProjection()));
+		m_SkyboxUniformBuffer.SetData(sizeof(glm::mat4), 0, glm::value_ptr(camera.GetTransform()));
+		m_SkyboxUniformBuffer.SetData(sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(camera.GetProjection()));
 
 		VkDescriptorBufferInfo projectionBufferInfo = {};
-		projectionBufferInfo.buffer= m_UniformBuffer.m_Buffer;
+		projectionBufferInfo.buffer= m_UniformBuffer.GetBuffer();
 		projectionBufferInfo.range = sizeof(glm::mat4) * 2;
 		projectionBufferInfo.offset = 0;
 
@@ -3221,7 +3390,7 @@ retryAqurireNextImage:
 		projectionDescriptorWrite.pTexelBufferView = NULL;
 
 		VkDescriptorBufferInfo skyboxProjectionBufferInfo = {};
-		skyboxProjectionBufferInfo.buffer= m_SkyboxUniformBuffer.m_Buffer;
+		skyboxProjectionBufferInfo.buffer= m_SkyboxUniformBuffer.GetBuffer();
 		skyboxProjectionBufferInfo.range = sizeof(glm::mat4) * 2;
 		skyboxProjectionBufferInfo.offset = 0;
 
@@ -3860,13 +4029,16 @@ retryAqurireNextImage:
 	uint32_t Renderer::ChooseMemoryType(uint32_t typeFilter,
 										const VkPhysicalDeviceMemoryProperties& deviceMemoryProperties,
 										VkMemoryPropertyFlags requiredPproperties,
-										VkMemoryPropertyFlags optimalProperties) {
+										VkMemoryPropertyFlags optimalProperties,
+										bool* optimalSelected) {
 		uint32_t type = UINT32_MAX;
 		optimalProperties |= requiredPproperties;
 		for (uint32_t i = 0; i < deviceMemoryProperties.memoryTypeCount; i++) {
 			if ((typeFilter & (1 << i)) &&
 				(deviceMemoryProperties.memoryTypes[i].propertyFlags & optimalProperties) == optimalProperties)
 			{
+				if (optimalSelected != nullptr)
+					*optimalSelected = true;
 				return i;
 			}
 			if ((typeFilter & (1 << i)) &&
@@ -3877,6 +4049,8 @@ retryAqurireNextImage:
 		}
 		if (type == UINT32_MAX)
 			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Unable to find suitable memory type.");
+		if (optimalSelected != nullptr)
+					*optimalSelected = false;
 		return type;
 	}
 
@@ -3986,7 +4160,7 @@ retryAqurireNextImage:
 		imageAlloacteInfo.memoryTypeIndex = ChooseMemoryType(imageMemoryRequirements.memoryTypeBits,
 															 m_PhysicalDeviceMemoryProperties,
 															 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-															 0);
+															 0, nullptr);
 
 		result = vkAllocateMemory(m_Device, &imageAlloacteInfo, NULL, deviceMemory);
 		CEE_VERIFY(result == VK_SUCCESS, "Failed to create components for image. alloc.");
@@ -4090,6 +4264,46 @@ retryAqurireNextImage:
 		return 0;
 	}
 
+	VkResult Renderer::CreateBufferObjects(VkBuffer* buffer, VkDeviceMemory* deviceMemory, size_t* size,
+										   VkBufferUsageFlags usage,
+										   VkMemoryPropertyFlags requiredMemoryPropertyFlags,
+										   VkMemoryPropertyFlags optimalMemoryPropertyFlags, bool* optimalMemory)
+	{
+		VkResult result = VK_SUCCESS;
+		VkBufferCreateInfo bufferCreateInfo = {
+			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+			.pNext = NULL,
+			.flags = 0,
+			.size = *size,
+			.usage = usage,
+			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.queueFamilyIndexCount = 0,
+			.pQueueFamilyIndices = NULL
+		};
+		VkMemoryRequirements bufferMemoryRequirements = {};
+		result = vkCreateBuffer(m_Device, &bufferCreateInfo, NULL, buffer);
+		CEE_VERIFY(result == VK_SUCCESS, "Failed to create buffer.");
+		vkGetBufferMemoryRequirements(m_Device, *buffer, &bufferMemoryRequirements);
+		VkMemoryAllocateInfo bufferAllocateInfo = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.pNext = NULL,
+			.allocationSize = bufferMemoryRequirements.size,
+			.memoryTypeIndex = Renderer::ChooseMemoryType(bufferMemoryRequirements.memoryTypeBits,
+														  Renderer::Get()->GetDeviceMemoryProperties(),
+														  requiredMemoryPropertyFlags,
+														  optimalMemoryPropertyFlags,
+														  optimalMemory)
+		};
+		result = vkAllocateMemory(m_Device, &bufferAllocateInfo, NULL, deviceMemory);
+		CEE_VERIFY(result == VK_SUCCESS, "Failed to allocate buffer memory.");
+
+		result = vkBindBufferMemory(m_Device, *buffer, *deviceMemory, 0);
+		CEE_VERIFY(result == VK_SUCCESS, "Failed to bind buffer memory.");
+
+		*size = bufferMemoryRequirements.size;
+		return result;
+	}
+
 	int Renderer::CreateCommonBuffer(VkBuffer& buffer,
 									  VkDeviceMemory& memory,
 									  VkBufferUsageFlags usage,
@@ -4131,7 +4345,7 @@ retryAqurireNextImage:
 			memoryRequirements.memoryTypeBits,
 			memoryProperties,
 			memoryPropertyFlags,
-			0);
+			0, nullptr);
 
 		result = vkAllocateMemory(m_Device, &memoryAllocateInfo, NULL, &memory);
 		if (result != VK_SUCCESS) {
@@ -4151,60 +4365,6 @@ retryAqurireNextImage:
 		}
 
 		return 0;
-	}
-
-	VertexBuffer Renderer::CreateVertexBuffer(size_t size) {
-		VertexBuffer buffer;
-		buffer.m_Device = m_Device;
-
-		if (CreateCommonBuffer(buffer.m_Buffer,
-			buffer.m_DeviceMemory,
-			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			size))
-		{
-			return VertexBuffer();
-		}
-
-		buffer.m_Size = size;
-		buffer.m_Initialized = true;
-
-		return buffer;
-	}
-
-	IndexBuffer Renderer::CreateIndexBuffer(size_t size) {
-		IndexBuffer buffer;
-		buffer.m_Device = m_Device;
-
-		if (CreateCommonBuffer(buffer.m_Buffer,
-			buffer.m_DeviceMemory,
-			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-			size))
-		{
-			return IndexBuffer();
-		}
-
-		buffer.m_Size = size;
-		buffer.m_Initialized = true;
-
-		return buffer;
-	}
-
-	UniformBuffer Renderer::CreateUniformBuffer(size_t size) {
-		UniformBuffer buffer;
-		buffer.m_Device = m_Device;
-
-		if (CreateCommonBuffer(buffer.m_Buffer,
-			buffer.m_DeviceMemory,
-			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			size))
-		{
-			return UniformBuffer();
-		}
-
-		buffer.m_Size = size;
-		buffer.m_Initialized = true;
-
-		return buffer;
 	}
 
 	ImageBuffer Renderer::CreateImageBuffer(size_t width, size_t height, Format format) {
