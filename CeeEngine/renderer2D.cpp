@@ -45,7 +45,11 @@ namespace cee {
 
 		size_t maxVertices = (6 * s_RendererCapabilities.maxIndices) / 4;
 		s_IndexBuffer = IndexBuffer(sizeof(uint32_t) * s_RendererCapabilities.maxIndices);
-		s_VertexBuffer = VertexBuffer(sizeof(Vertex2D) * maxVertices);
+		s_VertexBuffer = VertexBuffer({
+			{ ShaderDataType::Float4, false },
+			{ ShaderDataType::Float4, false },
+			{ ShaderDataType::Float2, false },
+		}, sizeof(Vertex2D) * maxVertices);
 
 		uint32_t* indices = new uint32_t[s_RendererCapabilities.maxIndices];
 		size_t offset = 0, index = 0;

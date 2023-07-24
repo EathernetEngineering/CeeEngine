@@ -162,7 +162,13 @@ namespace cee {
 
 		size_t maxVertices = (6 * s_RendererCapabilities.maxIndices) / 4;
 		s_IndexBuffer = IndexBuffer(sizeof(uint32_t) * s_RendererCapabilities.maxIndices);
-		s_VertexBuffer = VertexBuffer(sizeof(Vertex3D) * maxVertices);
+		s_VertexBuffer = VertexBuffer({
+			{ ShaderDataType::Float4, false },
+			{ ShaderDataType::Float3, false },
+			{ ShaderDataType::Float4, false },
+			{ ShaderDataType::Float2, false },
+			{ ShaderDataType::Int, false },
+		}, sizeof(Vertex2D) * maxVertices);
 
 		CubeMapBuffer cubeMapBuffer({
 			"/home/chloe/dev/cpp/CeeEngineRewrite/CeeEditor/res/textures/elyvisions/skype_ft.png",

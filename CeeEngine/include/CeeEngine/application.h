@@ -39,9 +39,6 @@ namespace cee {
 		std::shared_ptr<Renderer> m_Renderer;
 		std::shared_ptr<Window> m_Window;
 
-		VertexBuffer m_VertexBuffer;
-		IndexBuffer m_IndexBuffer;
-
 		std::thread m_RenderThread;
 
 		uint64_t m_AverageFrameTime;

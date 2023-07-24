@@ -175,13 +175,13 @@ namespace cee {
 	}
 
 	VertexBuffer::VertexBuffer()
-	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(0),
+	: m_Layout(), m_Initialized(false), m_Size(0),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false)
 	{
 	}
 
-	VertexBuffer::VertexBuffer(size_t size, bool persistantlyMapped)
-	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(size),
+	VertexBuffer::VertexBuffer(VertexBufferLayout layout, size_t size, bool persistantlyMapped)
+	: m_Layout(layout), m_Initialized(false), m_Size(size),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
 	  m_PersistantlyMapped(persistantlyMapped)
 	{
@@ -199,22 +199,19 @@ namespace cee {
 	}
 
 	VertexBuffer::~VertexBuffer() {
-		if (m_Initialized) {
-			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
-			if (m_HostMappedAddress.has_value()) {
-				vkUnmapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory);
-			}
-			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
-			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
-		}
+		FreeResources();
 	}
 
 	VertexBuffer& VertexBuffer::operator=(VertexBuffer&& other) {
-		if (this->m_Initialized) {
-			this->~VertexBuffer();
+		if (this == &other) {
+			return *this;
 		}
 
-		this->m_Device = other.m_Device;
+		if (this->m_Initialized) {
+			this->FreeResources();
+		}
+
+		this->m_Layout = std::move(other.m_Layout);
 		this->m_Size = other.m_Size;
 		this->m_Buffer = other.m_Buffer;
 		this->m_DeviceMemory = other.m_DeviceMemory;
@@ -225,7 +222,7 @@ namespace cee {
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
 
-		other.m_Device = VK_NULL_HANDLE;
+		other.m_Layout = VertexBufferLayout();
 		other.m_Size = 0;
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
@@ -252,7 +249,9 @@ namespace cee {
 	}
 
 	void VertexBuffer::FlushMemory() {
-		FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		if (m_HostMappedAddress.has_value()) {
+			FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		}
 	}
 
 	void VertexBuffer::MapMemory() {
@@ -272,14 +271,26 @@ namespace cee {
 			}
 	}
 
+	void VertexBuffer::FreeResources() {
+		if (m_Initialized) {
+			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
+			if (m_HostMappedAddress.has_value()) {
+				UnmapMemory();
+			}
+			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
+			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
+			m_Initialized = false;
+		}
+	}
+
 	IndexBuffer::IndexBuffer()
-	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(0),
+	: m_Initialized(false), m_Size(0),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE)
 	{
 	}
 
 	IndexBuffer::IndexBuffer(size_t size, bool persistantlyMapped)
-	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(size),
+	: m_Initialized(false), m_Size(size),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE),
 	  m_PersistantlyMapped(persistantlyMapped)
 	{
@@ -297,11 +308,7 @@ namespace cee {
 	}
 
 	IndexBuffer::~IndexBuffer() {
-		if (m_Initialized) {
-			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
-			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
-			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
-		}
+		FreeResources();
 	}
 
 	IndexBuffer& IndexBuffer::operator=(IndexBuffer&& other) {
@@ -309,7 +316,6 @@ namespace cee {
 			this->~IndexBuffer();
 		}
 
-		this->m_Device = other.m_Device;
 		this->m_Size = other.m_Size;
 		this->m_Buffer = other.m_Buffer;
 		this->m_DeviceMemory = other.m_DeviceMemory;
@@ -320,7 +326,6 @@ namespace cee {
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
 
-		other.m_Device = VK_NULL_HANDLE;
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
 		other.m_Size = 0;
@@ -347,7 +352,9 @@ namespace cee {
 	}
 
 	void IndexBuffer::FlushMemory() {
-		FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		if (m_HostMappedAddress.has_value()) {
+			FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		}
 	}
 
 	void IndexBuffer::MapMemory() {
@@ -367,14 +374,26 @@ namespace cee {
 			}
 	}
 
+	void IndexBuffer::FreeResources() {
+		if (m_Initialized) {
+			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
+			if (m_HostMappedAddress.has_value()) {
+				UnmapMemory();
+			}
+			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
+			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
+			m_Initialized = false;
+		}
+	}
+
 	UniformBuffer::UniformBuffer()
-	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(0),
+	: m_Initialized(false), m_Size(0),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE)
 	{
 	}
 
 	UniformBuffer::UniformBuffer(size_t size, bool persistantlyMapped)
-	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_Size(size),
+	: m_Initialized(false), m_Size(size),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE),
 	  m_PersistantlyMapped(persistantlyMapped)
 	{
@@ -392,11 +411,7 @@ namespace cee {
 	}
 
 	UniformBuffer::~UniformBuffer() {
-		if (m_Initialized) {
-			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
-			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
-			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
-		}
+		FreeResources();
 	}
 
 	UniformBuffer& UniformBuffer::operator=(UniformBuffer&& other) {
@@ -404,7 +419,6 @@ namespace cee {
 			this->~UniformBuffer();
 		}
 
-		this->m_Device = other.m_Device;
 		this->m_Size = other.m_Size;
 		this->m_Buffer = other.m_Buffer;
 		this->m_DeviceMemory = other.m_DeviceMemory;
@@ -414,7 +428,6 @@ namespace cee {
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
 
-		other.m_Device = VK_NULL_HANDLE;
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
 		other.m_Size = 0;
@@ -440,7 +453,9 @@ namespace cee {
 	}
 
 	void UniformBuffer::FlushMemory() {
-		FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		if (m_HostMappedAddress.has_value()) {
+			FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		}
 	}
 
 	void UniformBuffer::MapMemory() {
@@ -458,6 +473,18 @@ namespace cee {
 				vkUnmapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory);
 				m_HostMappedAddress.reset();
 			}
+	}
+
+	void UniformBuffer::FreeResources() {
+		if (m_Initialized) {
+			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
+			if (m_HostMappedAddress.has_value()) {
+				UnmapMemory();
+			}
+			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
+			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
+			m_Initialized = false;
+		}
 	}
 
 	ImageBuffer::ImageBuffer()
@@ -2511,7 +2538,7 @@ namespace cee {
 			m_Skybox.Clear({ 0.2f, 0.0f, 0.8f, 1.0f });
 
 			m_SkyboxUniformBuffer = UniformBuffer(sizeof(glm::mat4) * 2, true);
-			m_SkyboxVertexBuffer = VertexBuffer(6 * sizeof(glm::vec3));
+			m_SkyboxVertexBuffer = VertexBuffer({ { ShaderDataType::Float3, false } }, 6 * sizeof(glm::vec3));
 
 			constexpr glm::vec3 skyboxVertices[] = {
 				{ -1.0f,  1.0f,  1.0f }, {  1.0f,  1.0f,  1.0f }, {  1.0f, -1.0f,  1.0f }, // font face

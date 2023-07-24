@@ -165,11 +165,21 @@ namespace cee {
 	};
 
 	struct VertexBufferLayout {
+		VertexBufferLayout() {}
+
 		VertexBufferLayout(std::initializer_list<VertexBufferAttribute> attibutes)
 		: m_Attributes(attibutes)
 		{
 			CalculateOffsetAndStride();
 		}
+
+		uint32_t GetStride() const { return m_Stride; }
+		const std::vector<VertexBufferAttribute>& GetElements() const { return m_Attributes; }
+
+		std::vector<VertexBufferAttribute>::iterator begin() { return m_Attributes.begin(); }
+		std::vector<VertexBufferAttribute>::iterator end() { return m_Attributes.end(); }
+		std::vector<VertexBufferAttribute>::const_iterator cbegin() const { return m_Attributes.cbegin(); }
+		std::vector<VertexBufferAttribute>::const_iterator cend() const { return m_Attributes.cend(); }
 
 	private:
 		void CalculateOffsetAndStride() {
@@ -191,7 +201,7 @@ namespace cee {
 	class VertexBuffer {
 	public:
 		VertexBuffer();
-		VertexBuffer(size_t size, bool persistantlyMapped = false);
+		VertexBuffer(VertexBufferLayout layout, size_t size, bool persistantlyMapped = false);
 		VertexBuffer(const VertexBuffer&) = delete;
 		VertexBuffer(VertexBuffer&& other);
 		~VertexBuffer();
@@ -200,6 +210,8 @@ namespace cee {
 		VertexBuffer& operator=(VertexBuffer&& other);
 
 		void SetData(size_t size, size_t offset, const void* data);
+
+		VertexBufferLayout GetLayout() const { return m_Layout; }
 
 	private:
 		void FlushMemory();
@@ -210,10 +222,11 @@ namespace cee {
 		// called instead of accessing member directly as it flushes data to the GPU.
 		VkBuffer& GetBuffer() { FlushMemory(); return m_Buffer; }
 
-	private:
-		bool m_Initialized;
+		void FreeResources();
 
-		VkDevice m_Device;
+	private:
+		VertexBufferLayout m_Layout;
+		bool m_Initialized;
 
 		size_t m_Size;
 		VkBuffer m_Buffer;
@@ -248,10 +261,10 @@ namespace cee {
 
 		VkBuffer GetBuffer() { FlushMemory(); return m_Buffer; }
 
+		void FreeResources();
+
 	private:
 		bool m_Initialized;
-
-		VkDevice m_Device;
 
 		size_t m_Size;
 		VkBuffer m_Buffer;
@@ -286,10 +299,10 @@ namespace cee {
 
 		VkBuffer GetBuffer() { FlushMemory(); return m_Buffer; }
 
+		void FreeResources();
+
 	private:
 		bool m_Initialized;
-
-		VkDevice m_Device;
 
 		size_t m_Size;
 		VkBuffer m_Buffer;
