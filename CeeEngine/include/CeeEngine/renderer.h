@@ -152,34 +152,34 @@ namespace cee {
 		}
 	}
 
-	struct VertexBufferAttribute {
+	struct BufferAttribute {
 		ShaderDataType type;
 		uint32_t size;
 		uint32_t offset;
 
 		bool normalized;
 
-		VertexBufferAttribute(ShaderDataType type, bool normalized = false)
+		BufferAttribute(ShaderDataType type, bool normalized = false)
 		: type(type), size(GetShaderDataTypeSize(type)), normalized(normalized)
 		{ }
 	};
 
-	struct VertexBufferLayout {
-		VertexBufferLayout() {}
+	struct BufferLayout {
+		BufferLayout() {}
 
-		VertexBufferLayout(std::initializer_list<VertexBufferAttribute> attibutes)
+		BufferLayout(std::initializer_list<BufferAttribute> attibutes)
 		: m_Attributes(attibutes)
 		{
 			CalculateOffsetAndStride();
 		}
 
 		uint32_t GetStride() const { return m_Stride; }
-		const std::vector<VertexBufferAttribute>& GetElements() const { return m_Attributes; }
+		const std::vector<BufferAttribute>& GetElements() const { return m_Attributes; }
 
-		std::vector<VertexBufferAttribute>::iterator begin() { return m_Attributes.begin(); }
-		std::vector<VertexBufferAttribute>::iterator end() { return m_Attributes.end(); }
-		std::vector<VertexBufferAttribute>::const_iterator cbegin() const { return m_Attributes.cbegin(); }
-		std::vector<VertexBufferAttribute>::const_iterator cend() const { return m_Attributes.cend(); }
+		std::vector<BufferAttribute>::iterator begin() { return m_Attributes.begin(); }
+		std::vector<BufferAttribute>::iterator end() { return m_Attributes.end(); }
+		std::vector<BufferAttribute>::const_iterator cbegin() const { return m_Attributes.cbegin(); }
+		std::vector<BufferAttribute>::const_iterator cend() const { return m_Attributes.cend(); }
 
 	private:
 		void CalculateOffsetAndStride() {
@@ -194,14 +194,14 @@ namespace cee {
 
 
 	private:
-		std::vector<VertexBufferAttribute> m_Attributes;
+		std::vector<BufferAttribute> m_Attributes;
 		uint32_t m_Stride;
 	};
 
 	class VertexBuffer {
 	public:
 		VertexBuffer();
-		VertexBuffer(VertexBufferLayout layout, size_t size, bool persistantlyMapped = false);
+		VertexBuffer(BufferLayout layout, size_t size, bool persistantlyMapped = false);
 		VertexBuffer(const VertexBuffer&) = delete;
 		VertexBuffer(VertexBuffer&& other);
 		~VertexBuffer();
@@ -211,7 +211,7 @@ namespace cee {
 
 		void SetData(size_t size, size_t offset, const void* data);
 
-		VertexBufferLayout GetLayout() const { return m_Layout; }
+		BufferLayout GetLayout() const { return m_Layout; }
 
 	private:
 		void FlushMemory();
@@ -225,7 +225,7 @@ namespace cee {
 		void FreeResources();
 
 	private:
-		VertexBufferLayout m_Layout;
+		BufferLayout m_Layout;
 		bool m_Initialized;
 
 		size_t m_Size;
@@ -282,7 +282,7 @@ namespace cee {
 	class UniformBuffer {
 	public:
 		UniformBuffer();
-		UniformBuffer(size_t size, bool persistantlyMapped = false);
+		UniformBuffer(BufferLayout layout, size_t size, bool persistantlyMapped = false);
 		UniformBuffer(const UniformBuffer&) = delete;
 		UniformBuffer(UniformBuffer&& other);
 		~UniformBuffer();
@@ -298,6 +298,7 @@ namespace cee {
 		void UnmapMemory();
 
 		VkBuffer GetBuffer() { if (m_PersistantlyMapped) FlushMemory(); return m_Buffer; }
+		BufferLayout GetLayout() const { return m_Layout; }
 
 		void FreeResources();
 
@@ -312,6 +313,8 @@ namespace cee {
 		std::optional<void*> m_HostMappedAddress;
 
 		bool m_PersistantlyMapped;
+
+		BufferLayout m_Layout;
 
 		friend Renderer;
 		friend StagingBuffer;
@@ -485,7 +488,7 @@ namespace cee {
 		Pipeline& operator=(Pipeline&& other);
 
 	private:
-		VertexBufferLayout m_InputLayout;
+		BufferLayout m_InputLayout;
 		DescriptorManager m_DescriptorManager;
 		VkPipelineLayout m_Layout;
 		VkPipeline m_Pipeline;

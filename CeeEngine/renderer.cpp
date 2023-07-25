@@ -186,7 +186,7 @@ namespace cee {
 	{
 	}
 
-	VertexBuffer::VertexBuffer(VertexBufferLayout layout, size_t size, bool persistantlyMapped)
+	VertexBuffer::VertexBuffer(BufferLayout layout, size_t size, bool persistantlyMapped)
 	: m_Layout(layout), m_Initialized(false), m_Size(size),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
 	  m_HostMappedAddress(std::nullopt), m_PersistantlyMapped(persistantlyMapped)
@@ -228,7 +228,7 @@ namespace cee {
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
 
-		other.m_Layout = VertexBufferLayout();
+		other.m_Layout = BufferLayout();
 		other.m_Size = 0;
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
@@ -406,10 +406,11 @@ namespace cee {
 	{
 	}
 
-	UniformBuffer::UniformBuffer(size_t size, bool persistantlyMapped)
+	UniformBuffer::UniformBuffer(BufferLayout layout, size_t size, bool persistantlyMapped)
 	: m_Initialized(false), m_Size(size),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
-	  m_HostMappedAddress(std::nullopt), m_PersistantlyMapped(persistantlyMapped)
+	  m_HostMappedAddress(std::nullopt), m_PersistantlyMapped(persistantlyMapped),
+	  m_Layout(layout)
 	{
 		Renderer::Get()->CreateBufferObjects(&m_Buffer, &m_DeviceMemory, &m_Size,
 											 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -439,6 +440,7 @@ namespace cee {
 		this->m_HostVisable = other.m_HostVisable;
 		this->m_HostMappedAddress = other.m_HostMappedAddress;
 		this->m_PersistantlyMapped = other.m_PersistantlyMapped;
+		this->m_Layout = other.m_Layout;
 
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
@@ -449,6 +451,7 @@ namespace cee {
 		other.m_HostVisable = false;
 		other.m_HostMappedAddress.reset();
 		other.m_PersistantlyMapped = false;
+		other.m_Layout = BufferLayout();
 
 		return *this;
 	}
@@ -2587,7 +2590,10 @@ namespace cee {
 			stagingBuffer.TransferDataImmediate(m_ImageBuffer, 0, 0, imageSize.width, imageSize.height);
 			free(image);
 
-			m_UniformBuffer = UniformBuffer(2 * sizeof(glm::mat4), true);
+			m_UniformBuffer = UniformBuffer({
+				{ ShaderDataType::Mat4, false },
+				{ ShaderDataType::Mat4, false }
+			}, 2 * sizeof(glm::mat4), true);
 			glm::mat4 view(1.0f);
 
 			glm::mat4 perspeciveViewMatrix = glm::perspective(glm::radians(90.0f),
@@ -2605,7 +2611,10 @@ namespace cee {
 			m_Skybox = CubeMapBuffer(m_SwapchainExtent.width, m_SwapchainExtent.width);
 			m_Skybox.Clear({ 0.2f, 0.0f, 0.8f, 1.0f });
 
-			m_SkyboxUniformBuffer = UniformBuffer(sizeof(glm::mat4) * 2, true);
+			m_SkyboxUniformBuffer = UniformBuffer({
+				{ ShaderDataType::Mat4, false },
+				{ ShaderDataType::Mat4, false }
+			}, sizeof(glm::mat4) * 2, true);
 			m_SkyboxVertexBuffer = VertexBuffer({ { ShaderDataType::Float3, false } }, 6 * sizeof(glm::vec3));
 
 			constexpr glm::vec3 skyboxVertices[] = {
