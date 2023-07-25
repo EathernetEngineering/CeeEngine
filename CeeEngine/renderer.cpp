@@ -41,7 +41,7 @@ enum PipelineFlagsBits
 typedef uint32_t PipelineFlags;
 
 namespace cee {
-	void FlushBufferMemory(size_t size, size_t offset, VkDeviceMemory deviceMemory) {
+	static void FlushBufferMemory(size_t size, size_t offset, VkDeviceMemory deviceMemory) {
 		VkMappedMemoryRange range = {
 				.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
 				.pNext = NULL,
@@ -53,7 +53,12 @@ namespace cee {
 			CEE_VERIFY(result == VK_SUCCESS, "Failed to flush mapped memory.");
 	}
 
+	static bool CheckMemoryCopyBounds(size_t srcSize, size_t srcOffset, size_t dstSize, size_t dstOffset, size_t range) {
+		if (((range + srcOffset) > srcSize) || ((range + dstOffset) > dstSize) || (range == 0))
+			return true;
 
+		return false;
+	}
 
 	VkFormat CeeFormatToVkFormat(::cee::Format foramt) {
 		switch (foramt) {
@@ -176,14 +181,15 @@ namespace cee {
 
 	VertexBuffer::VertexBuffer()
 	: m_Layout(), m_Initialized(false), m_Size(0),
-	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false)
+	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
+	  m_HostMappedAddress(std::nullopt), m_PersistantlyMapped(false)
 	{
 	}
 
 	VertexBuffer::VertexBuffer(VertexBufferLayout layout, size_t size, bool persistantlyMapped)
 	: m_Layout(layout), m_Initialized(false), m_Size(size),
 	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
-	  m_PersistantlyMapped(persistantlyMapped)
+	  m_HostMappedAddress(std::nullopt), m_PersistantlyMapped(persistantlyMapped)
 	{
 		Renderer::Get()->CreateBufferObjects(&m_Buffer, &m_DeviceMemory, &m_Size,
 											 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -238,7 +244,7 @@ namespace cee {
 			if (!m_HostMappedAddress.has_value()) {
 				MapMemory();
 			}
-			memcpy((uint8_t*)m_HostMappedAddress.value_or(nullptr) + offset, data, size);
+			memcpy(static_cast<uint8_t*>(m_HostMappedAddress.value_or(nullptr)) + offset, data, size);
 			if (!m_PersistantlyMapped) {
 				UnmapMemory();
 			}
@@ -251,6 +257,9 @@ namespace cee {
 	void VertexBuffer::FlushMemory() {
 		if (m_HostMappedAddress.has_value()) {
 			FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		} else  {
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING,
+											 "Calling flush on unmapped memory.");
 		}
 	}
 
@@ -285,14 +294,15 @@ namespace cee {
 
 	IndexBuffer::IndexBuffer()
 	: m_Initialized(false), m_Size(0),
-	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE)
+	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
+	  m_HostMappedAddress(std::nullopt), m_PersistantlyMapped(false)
 	{
 	}
 
 	IndexBuffer::IndexBuffer(size_t size, bool persistantlyMapped)
 	: m_Initialized(false), m_Size(size),
-	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE),
-	  m_PersistantlyMapped(persistantlyMapped)
+	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
+	  m_HostMappedAddress(std::nullopt), m_PersistantlyMapped(persistantlyMapped)
 	{
 		Renderer::Get()->CreateBufferObjects(&m_Buffer, &m_DeviceMemory, &m_Size,
 											 VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -341,7 +351,7 @@ namespace cee {
 			if (!m_HostMappedAddress.has_value()) {
 				MapMemory();
 			}
-			memcpy((uint8_t*)m_HostMappedAddress.value_or(nullptr) + offset, data, size);
+			memcpy(static_cast<uint8_t*>(m_HostMappedAddress.value_or(nullptr)) + offset, data, size);
 			if (!m_PersistantlyMapped) {
 				UnmapMemory();
 			}
@@ -354,6 +364,9 @@ namespace cee {
 	void IndexBuffer::FlushMemory() {
 		if (m_HostMappedAddress.has_value()) {
 			FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		} else  {
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING,
+											 "Calling flush on unmapped memory.");
 		}
 	}
 
@@ -388,14 +401,15 @@ namespace cee {
 
 	UniformBuffer::UniformBuffer()
 	: m_Initialized(false), m_Size(0),
-	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE)
+	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
+	  m_HostMappedAddress(std::nullopt), m_PersistantlyMapped(false)
 	{
 	}
 
 	UniformBuffer::UniformBuffer(size_t size, bool persistantlyMapped)
 	: m_Initialized(false), m_Size(size),
-	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE),
-	  m_PersistantlyMapped(persistantlyMapped)
+	  m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE), m_HostVisable(false),
+	  m_HostMappedAddress(std::nullopt), m_PersistantlyMapped(persistantlyMapped)
 	{
 		Renderer::Get()->CreateBufferObjects(&m_Buffer, &m_DeviceMemory, &m_Size,
 											 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -422,8 +436,9 @@ namespace cee {
 		this->m_Size = other.m_Size;
 		this->m_Buffer = other.m_Buffer;
 		this->m_DeviceMemory = other.m_DeviceMemory;
-		this->m_HostMappedAddress = other.m_HostMappedAddress;
 		this->m_HostVisable = other.m_HostVisable;
+		this->m_HostMappedAddress = other.m_HostMappedAddress;
+		this->m_PersistantlyMapped = other.m_PersistantlyMapped;
 
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
@@ -431,8 +446,9 @@ namespace cee {
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
 		other.m_Size = 0;
-		other.m_HostMappedAddress.reset();
 		other.m_HostVisable = false;
+		other.m_HostMappedAddress.reset();
+		other.m_PersistantlyMapped = false;
 
 		return *this;
 	}
@@ -442,7 +458,7 @@ namespace cee {
 			if (!m_HostMappedAddress.has_value()) {
 				MapMemory();
 			}
-			memcpy((uint8_t*)m_HostMappedAddress.value_or(nullptr) + offset, data, size);
+			memcpy(static_cast<uint8_t*>(m_HostMappedAddress.value_or(nullptr)) + offset, data, size);
 			if (!m_PersistantlyMapped) {
 				UnmapMemory();
 			}
@@ -455,6 +471,9 @@ namespace cee {
 	void UniformBuffer::FlushMemory() {
 		if (m_HostMappedAddress.has_value()) {
 			FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		} else  {
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING,
+											 "Calling flush on unmapped memory.");
 		}
 	}
 
@@ -659,7 +678,7 @@ namespace cee {
 		m_Initialized = true;
 
 		size_t singleImageSize = m_Extent.width * m_Extent.height * 4;
-		StagingBuffer sb = Renderer::Get()->CreateStagingBuffer(m_Size);
+		StagingBuffer sb(m_Size);
 		sb.SetData(singleImageSize, 0, imageData);
 		free(imageData);
 		for (uint32_t i = 1; i < 6; i++) {
@@ -800,10 +819,21 @@ namespace cee {
 	}
 
 	StagingBuffer::StagingBuffer()
-	: m_Initialized(false), m_Device(VK_NULL_HANDLE), m_CommandPool(VK_NULL_HANDLE),
-	  m_TransferQueue(VK_NULL_HANDLE), m_Size(0), m_Buffer(VK_NULL_HANDLE),
-	  m_DeviceMemory(VK_NULL_HANDLE), m_MappedMemoryAddress(NULL)
+	: m_Initialized(false), m_Size(0), m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE),
+	  m_MappedMemoryAddress(std::nullopt), m_PersistantlyMapped(false)
 	{
+	}
+
+	StagingBuffer::StagingBuffer(size_t size, bool persistantlyMapped)
+	: m_Initialized(false), m_Size(size), m_Buffer(VK_NULL_HANDLE), m_DeviceMemory(VK_NULL_HANDLE),
+	  m_MappedMemoryAddress(std::nullopt), m_PersistantlyMapped(persistantlyMapped)
+	{
+		Renderer::Get()->CreateBufferObjects(&m_Buffer, &m_DeviceMemory, &m_Size,
+											 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+											 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+											 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, nullptr);
+
+		m_Initialized = true;
 	}
 
 	StagingBuffer::StagingBuffer(StagingBuffer&& other)
@@ -813,37 +843,28 @@ namespace cee {
 	}
 
 	StagingBuffer::~StagingBuffer() {
-		if (m_Initialized) {
-			vkDeviceWaitIdle(m_Device);
-			vkUnmapMemory(m_Device, m_DeviceMemory);
-			vkDestroyBuffer(m_Device, m_Buffer, NULL);
-			vkFreeMemory(m_Device, m_DeviceMemory, NULL);
-		}
+		FreeResources();
 	}
 
 	StagingBuffer& StagingBuffer::operator=(StagingBuffer&& other) {
 		if (this->m_Initialized) {
-			this->~StagingBuffer();
+			FreeResources();
 		}
 
-		this->m_Device = other.m_Device;
-		this->m_CommandPool = other.m_CommandPool;
-		this->m_TransferQueue = other.m_TransferQueue;
 		this->m_Size = other.m_Size;
 		this->m_Buffer = other.m_Buffer;
 		this->m_DeviceMemory = other.m_DeviceMemory;
 		this->m_MappedMemoryAddress = other.m_MappedMemoryAddress;
+		this->m_PersistantlyMapped = other.m_PersistantlyMapped;
 
 		this->m_Initialized = other.m_Initialized;
 		other.m_Initialized = false;
 
-		other.m_Device = VK_NULL_HANDLE;
-		other.m_CommandPool = VK_NULL_HANDLE;
-		other.m_TransferQueue = VK_NULL_HANDLE;
 		other.m_Buffer = VK_NULL_HANDLE;
 		other.m_DeviceMemory = VK_NULL_HANDLE;
 		other.m_Size = 0;
-		other.m_MappedMemoryAddress = NULL;
+		other.m_MappedMemoryAddress.reset();
+		other.m_PersistantlyMapped = false;
 
 		return *this;
 	}
@@ -867,9 +888,28 @@ namespace cee {
 			return -1;
 		}
 
+		if (!m_MappedMemoryAddress.has_value()) {
+			MapMemory();
+		}
+
 		// Copy data.
-		memcpy(static_cast<uint8_t*>(m_MappedMemoryAddress) + offset, data, size);
+		memcpy(static_cast<uint8_t*>(m_MappedMemoryAddress.value_or(nullptr)) + offset, data, size);
+
+		if (!m_PersistantlyMapped) {
+			UnmapMemory();
+		}
 		return 0;
+	}
+
+	void StagingBuffer::FreeResources() {
+		if (m_Initialized) {
+			vkDeviceWaitIdle(Renderer::Get()->GetDevice());
+			if (m_MappedMemoryAddress.has_value()) {
+				UnmapMemory();
+			}
+			vkDestroyBuffer(Renderer::Get()->GetDevice(), m_Buffer, NULL);
+			vkFreeMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, NULL);
+		}
 	}
 
 	int StagingBuffer::BoundsCheck(size_t size, size_t srcSize, size_t dstSize, size_t srcOffset, size_t dstOffset) {
@@ -906,6 +946,35 @@ namespace cee {
 		}, Renderer::QUEUE_TRANSFER);
 
 		return 0;
+	}
+
+	void StagingBuffer::FlushMemory() {
+		if (m_MappedMemoryAddress.has_value()) {
+			FlushBufferMemory(m_Size, 0, m_DeviceMemory);
+		} else  {
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING,
+											 "Calling flush on unmapped memory.");
+		}
+	}
+
+	void StagingBuffer::MapMemory() {
+		if (!m_MappedMemoryAddress.has_value()) {
+			void* address;
+			VkResult result = vkMapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory, 0, m_Size, 0, &address);
+			CEE_VERIFY(result == VK_SUCCESS, "Failed to map memory for staging buffer.");
+			m_MappedMemoryAddress = address;
+		} else {
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING,
+											 "Calling MapMemory() on an already mapped buffer.");
+		}
+	}
+
+	void StagingBuffer::UnmapMemory() {
+		if (m_MappedMemoryAddress.has_value()) {
+			FlushMemory();
+			vkUnmapMemory(Renderer::Get()->GetDevice(), m_DeviceMemory);
+			m_MappedMemoryAddress.reset();
+		}
 	}
 
 	int StagingBuffer::TransferData(VertexBuffer& vertexBuffer, size_t srcOffset, size_t dstOffset, size_t size) {
@@ -2507,8 +2576,7 @@ namespace cee {
 												 "Failed to load image for SVT ECG.");
 				return -1;
 			}
-			StagingBuffer stagingBuffer = this->CreateStagingBuffer(
-				imageSize.width * imageSize.height * 4);
+			StagingBuffer stagingBuffer = StagingBuffer(imageSize.width * imageSize.height * 4);
 
 			m_ImageBuffer = this->CreateImageBuffer(imageSize.width,
 													imageSize.height,
@@ -4331,69 +4399,6 @@ retryAqurireNextImage:
 		return result;
 	}
 
-	int Renderer::CreateCommonBuffer(VkBuffer& buffer,
-									  VkDeviceMemory& memory,
-									  VkBufferUsageFlags usage,
-									  size_t size)
-	{
-		VkBufferCreateInfo bufferCreateInfo = {};
-		bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		bufferCreateInfo.pNext = NULL;
-		bufferCreateInfo.flags = 0;
-		bufferCreateInfo.size = size;
-		bufferCreateInfo.usage = usage;
-		bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		bufferCreateInfo.queueFamilyIndexCount = 0;
-
-		VkResult result = vkCreateBuffer(m_Device, &bufferCreateInfo, NULL, &buffer);
-		if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to create staging buffer.");
-			return -1;
-		}
-
-		VkMemoryRequirements memoryRequirements = {};
-		vkGetBufferMemoryRequirements(m_Device, buffer, &memoryRequirements);
-
-		VkPhysicalDeviceMemoryProperties memoryProperties = {};
-		vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memoryProperties);
-
-		VkMemoryPropertyFlags memoryPropertyFlags;
-		if (usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) {
-			memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-		} else {
-			memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-		}
-
-		VkMemoryAllocateInfo memoryAllocateInfo = {};
-		memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memoryAllocateInfo.pNext = NULL;
-		memoryAllocateInfo.allocationSize = memoryRequirements.size;
-		memoryAllocateInfo.memoryTypeIndex = ChooseMemoryType(
-			memoryRequirements.memoryTypeBits,
-			memoryProperties,
-			memoryPropertyFlags,
-			0, nullptr);
-
-		result = vkAllocateMemory(m_Device, &memoryAllocateInfo, NULL, &memory);
-		if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
-											 "Failed to allocate memory for buffer.");
-			vkDestroyBuffer(m_Device, buffer, NULL);
-			return -1;
-		}
-
-		result = vkBindBufferMemory(m_Device, buffer, memory, 0);
-		if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
-											 "Failed to bind buffer memory.");
-			vkDestroyBuffer(m_Device, buffer, NULL);
-			vkFreeMemory(m_Device, memory, NULL);
-			return -1;
-		}
-
-		return 0;
-	}
-
 	ImageBuffer Renderer::CreateImageBuffer(size_t width, size_t height, Format format) {
 		ImageBuffer buffer;
 		buffer.m_Device = m_Device;
@@ -4431,39 +4436,4 @@ retryAqurireNextImage:
 
 		return buffer;
 	}
-
-	StagingBuffer Renderer::CreateStagingBuffer(size_t size) {
-		StagingBuffer buffer;
-		buffer.m_Device = m_Device;
-		buffer.m_CommandPool = m_TransferCmdPool;
-		buffer.m_TransferQueue = m_TransferQueue;
-
-		if (CreateCommonBuffer(buffer.m_Buffer,
-			buffer.m_DeviceMemory,
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			size))
-		{
-			return StagingBuffer();
-		}
-
-		VkResult result = vkMapMemory(m_Device,
-									  buffer.m_DeviceMemory,
-									  0,
-									  size,
-									  0,
-									  &buffer.m_MappedMemoryAddress);
-		if (result != VK_SUCCESS) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
-											 "Failed to map memory for staging buffer.");
-			vkDestroyBuffer(m_Device, buffer.m_Buffer, NULL);
-			vkFreeMemory(m_Device, buffer.m_DeviceMemory, NULL);
-			return StagingBuffer();
-		}
-
-		buffer.m_Size = size;
-		buffer.m_Initialized = true;
-
-		return buffer;
-	}
-
 }

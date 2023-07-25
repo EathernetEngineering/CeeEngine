@@ -220,7 +220,7 @@ namespace cee {
 
 		// To use this buffer for buffer copy/usage, this function should be
 		// called instead of accessing member directly as it flushes data to the GPU.
-		VkBuffer& GetBuffer() { FlushMemory(); return m_Buffer; }
+		VkBuffer& GetBuffer() { if (m_PersistantlyMapped) FlushMemory(); return m_Buffer; }
 
 		void FreeResources();
 
@@ -259,7 +259,7 @@ namespace cee {
 		void MapMemory();
 		void UnmapMemory();
 
-		VkBuffer GetBuffer() { FlushMemory(); return m_Buffer; }
+		VkBuffer GetBuffer() { if (m_PersistantlyMapped) FlushMemory(); return m_Buffer; }
 
 		void FreeResources();
 
@@ -297,7 +297,7 @@ namespace cee {
 		void MapMemory();
 		void UnmapMemory();
 
-		VkBuffer GetBuffer() { FlushMemory(); return m_Buffer; }
+		VkBuffer GetBuffer() { if (m_PersistantlyMapped) FlushMemory(); return m_Buffer; }
 
 		void FreeResources();
 
@@ -386,6 +386,7 @@ namespace cee {
 	class StagingBuffer {
 	public:
 		StagingBuffer();
+		StagingBuffer(size_t size, bool persistantlyMapped  =false);
 		StagingBuffer(const StagingBuffer&) = delete;
 		StagingBuffer(StagingBuffer&& other);
 		~StagingBuffer();
@@ -396,6 +397,10 @@ namespace cee {
 		int SetData(size_t size, size_t offset, const void* data);
 
 	private:
+		VkBuffer GetBuffer() { if (m_PersistantlyMapped) FlushMemory(); return m_Buffer; }
+
+		void FreeResources();
+
 		int BoundsCheck(size_t size, size_t srcSize, size_t dstSize, size_t srcOffset, size_t dstOddset);
 
 		int TransferDataInternal(VkBuffer src,
@@ -404,6 +409,10 @@ namespace cee {
 		int TransferDataInternalImmediate(VkBuffer src,
 										  VkBuffer dst,
 										  VkBufferCopy copyRegion);
+
+		void FlushMemory();
+		void MapMemory();
+		void UnmapMemory();
 
 	public:
 		int TransferData(VertexBuffer& vertexBuffer, size_t srcOffset, size_t dstOffset, size_t size);
@@ -421,17 +430,31 @@ namespace cee {
 	private:
 		bool m_Initialized;
 
-		VkDevice m_Device;
-		VkCommandPool m_CommandPool;
-		VkQueue m_TransferQueue;
-
 		size_t m_Size;
 		VkBuffer m_Buffer;
 		VkDeviceMemory m_DeviceMemory;
 
-		void* m_MappedMemoryAddress;
+		std::optional<void*> m_MappedMemoryAddress;
+		bool m_PersistantlyMapped;
 
 		friend Renderer;
+	};
+
+	class DescriptorManager {
+	public:
+		DescriptorManager();
+		virtual ~DescriptorManager();
+
+		DescriptorManager(const DescriptorManager&) = delete;
+		DescriptorManager(DescriptorManager&& other);
+
+		DescriptorManager& operator=(const DescriptorManager&) = delete;
+		DescriptorManager& operator=(DescriptorManager&& other);
+
+	private:
+		VkDescriptorPool m_Pool;
+		VkDescriptorSetLayout m_Layout;
+		std::vector<VkDescriptorSet> m_Sets;
 	};
 
 	enum class PrimitiveTopology {
@@ -451,7 +474,21 @@ namespace cee {
 	};
 
 	class Pipeline {
+	public:
+		Pipeline();
+		virtual ~Pipeline();
 
+		Pipeline(const Pipeline&) = delete;
+		Pipeline(Pipeline&& other);
+
+		Pipeline& operator=(const Pipeline&) = delete;
+		Pipeline& operator=(Pipeline&& other);
+
+	private:
+		VertexBufferLayout m_InputLayout;
+		DescriptorManager m_DescriptorManager;
+		VkPipelineLayout m_Layout;
+		VkPipeline m_Pipeline;
 	};
 
 	class Renderer {
@@ -557,12 +594,8 @@ namespace cee {
 		// **********************************
 		// ** BEGIN Buffer Implementations **
 		// **********************************
-	private:
-		int CreateCommonBuffer(VkBuffer& buffer, VkDeviceMemory& memory, VkBufferUsageFlags usage, size_t size);
-
 	public:
 		ImageBuffer CreateImageBuffer(size_t width, size_t height, Format format);
-		StagingBuffer CreateStagingBuffer(size_t size);
 		// **********************************
 		// ** END   Buffer Implementations **
 		// **********************************
@@ -706,12 +739,10 @@ namespace cee {
 	{
 		glm::mat4 transform = glm::identity<glm::mat4>();
 		transform = glm::translate(transform, translation);
-		if (rotationAngle != 0.0f)
+		if (rotationAngle != 0.0f) {
 			transform = glm::rotate(transform, rotationAngle, rotationAxis);
+		}
 		transform = glm::scale(transform, scale);
-
-
-
 
 		return transform;
 	}
