@@ -1,3 +1,2 @@
 # CeeEngine
-A vulkan based engine written in C
-
+A vulkan based game engine written in C++

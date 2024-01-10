@@ -1,3 +1,21 @@
+/* Decleration of old renderer.
+ *   Copyright (C) 2023-2024  Chloe Eather.
+ *
+ *   This file is part of CeeEngine.
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program.  If not, see <https://www.gnu.org/licenses/>. */
+
 #ifndef CEE_ENGINE_RENDERER_H
 #define CEE_ENGINE_RENDERER_H
 
@@ -8,6 +26,8 @@
 #include <CeeEngine/assert.h>
 
 #include <CeeEngine/platform.h>
+#include <CeeEngine/renderer/context.h>
+#include <CeeEngine/renderer/buffers.h>
 
 #include <vulkan/vulkan.h>
 
@@ -68,6 +88,32 @@ namespace cee {
 		FORMAT_DEPTH    = 128
 	};
 
+	#define BIT(x) (1 << x)
+	enum PipelineFlagsBits
+	{
+		RENDERER_PIPELINE_FLAG_3D      = BIT(0),
+		RENDERER_PIPELINE_FLAG_QUAD    = BIT(1),
+		RENDERER_PIPELINE_BASIC        = BIT(2),
+		RENDERER_PIPELINE_FILL         = BIT(3),
+		RENDERER_PIPELINE_RESERVED1    = BIT(4),
+		RENDERER_PIPELINE_RESERVED2    = BIT(5),
+		RENDERER_PIPELINE_RESERVED3    = BIT(6),
+		RENDERER_PIPELINE_RESERVED4    = BIT(7)
+	};
+	typedef uint32_t PipelineFlags;
+
+	enum ShaderStageFlagsBits
+	{
+		RENDERER_SHADER_STAGE_UNKNOWN        = BIT(0),
+		RENDERER_SHADER_STAGE_VERTEX         = BIT(1),
+		RENDERER_SHADER_STAGE_TESSELATION    = BIT(2),
+		RENDERER_SHADER_STAGE_GEOMETRY       = BIT(3),
+		RENDERER_SHADER_STAGE_FRAGMENT       = BIT(4),
+		RENDERER_SHADER_STAGE_COMPUTE        = BIT(5),
+		RENDERER_SHADER_STAGE_ALL            = BIT(6)
+	};
+	typedef uint32_t ShaderStageFlags;
+
 	enum RendererMode {
 		RENDERER_MODE_UNKNOWN = 0,
 		RENDERER_MODE_2D      = 1,
@@ -99,348 +145,77 @@ namespace cee {
 		int32_t useRenderDocLayer;
 	};
 
-	class Renderer;
-	class StagingBuffer;
+	class oldRenderer;
 
-	enum class ShaderDataType {
-		None = 0,
-		Float, Float2, Float3, Float4,
-		Mat3, Mat4,
-		Int, Int2, Int3, Int4,
-		Bool
+	class Sampler {
+	public:
+		Sampler();
+		//Sampler(/* Spec? */);
+		virtual ~Sampler();
+
+		VkSampler Get() { return m_Sampler; }
+
+	private:
+		VkSampler m_Sampler;
 	};
 
-	inline size_t GetShaderDataTypeSize(ShaderDataType type) {
-		switch (type) {
-			case ShaderDataType::Float:  return 4 * 1;
-			case ShaderDataType::Float2: return 4 * 2;
-			case ShaderDataType::Float3: return 4 * 3;
-			case ShaderDataType::Float4: return 4 * 4;
-			case ShaderDataType::Mat3:   return 4 * 3 * 3;
-			case ShaderDataType::Mat4:   return 4 * 4 * 4;
-			case ShaderDataType::Int:    return 4 * 1;
-			case ShaderDataType::Int2:   return 4 * 2;
-			case ShaderDataType::Int3:   return 4 * 3;
-			case ShaderDataType::Int4:   return 4 * 4;
-			case ShaderDataType::Bool:   return 1;
-			default:
-			{
-				CEE_ASSERT(false, "Calling GetShaderDataTypeSize() with an invald type.");
-				return -1ull;
-			}
-		}
-	}
-
-	inline size_t GetShaderDataTypeComponentCount(ShaderDataType type) {
-		switch (type) {
-			case ShaderDataType::Float:  return 1;
-			case ShaderDataType::Float2: return 2;
-			case ShaderDataType::Float3: return 3;
-			case ShaderDataType::Float4: return 4;
-			case ShaderDataType::Mat3:   return 3 * 3;
-			case ShaderDataType::Mat4:   return 4 * 4;
-			case ShaderDataType::Int:    return 1;
-			case ShaderDataType::Int2:   return 2;
-			case ShaderDataType::Int3:   return 3;
-			case ShaderDataType::Int4:   return 4;
-			case ShaderDataType::Bool:   return 1;
-			default:
-			{
-				CEE_ASSERT(false, "Calling GetShaderDataTypeSize() with an invald type.");
-				return -1ull;
-			}
-		}
-	}
-
-	struct BufferAttribute {
-		ShaderDataType type;
-		uint32_t size;
-		uint32_t offset;
-
-		bool normalized;
-
-		BufferAttribute(ShaderDataType type, bool normalized = false)
-		: type(type), size(GetShaderDataTypeSize(type)), normalized(normalized)
-		{ }
+	enum DescriptorType {
+		DESCRIPTOR_TYPE_UNKNOWN = 0,
+		DESCRIPTOR_TYPE_COMBINED_IMAGE_SMAPLER = 1,
+		DESCRIPTOR_TYPE_SMAPLER = 2,
+		DESCRIPTOR_TYPE_IMAGE = 3,
+		DESCRIPTOR_TYPE_UNIFORM_BUFFER = 4,
+		DESCRIPTOR_TYPE_STORAGE_BUFFER = 5
 	};
 
-	struct BufferLayout {
-		BufferLayout() {}
+	struct Descriptor {
+		VkDescriptorSetLayoutBinding binding;
 
-		BufferLayout(std::initializer_list<BufferAttribute> attibutes)
-		: m_Attributes(attibutes)
+		Descriptor& SetDescriptorCount(uint32_t count){ binding.descriptorCount = count; return *this; }
+		Descriptor& SetDescriptorType(VkDescriptorType type) { binding.descriptorType = type; return *this; }
+		Descriptor& SetDescriptorBinding(uint32_t binding) { this->binding.binding = binding; return *this; }
+		Descriptor& SetDescriptorStage(VkPipelineStageFlags stage) { binding.stageFlags = stage; return *this; }
+		Descriptor& SetImmutableSamplers(const VkSampler* immutableSamplers)
 		{
-			CalculateOffsetAndStride();
+			binding.pImmutableSamplers = immutableSamplers;
+			return *this;
 		}
 
-		uint32_t GetStride() const { return m_Stride; }
-		const std::vector<BufferAttribute>& GetElements() const { return m_Attributes; }
+		Descriptor() : binding({ .binding = 0,
+			.descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM,
+			.descriptorCount = 0,
+			.stageFlags = VK_PIPELINE_STAGE_NONE,
+			.pImmutableSamplers = VK_NULL_HANDLE })
+		{}
 
-		std::vector<BufferAttribute>::iterator begin() { return m_Attributes.begin(); }
-		std::vector<BufferAttribute>::iterator end() { return m_Attributes.end(); }
-		std::vector<BufferAttribute>::const_iterator cbegin() const { return m_Attributes.cbegin(); }
-		std::vector<BufferAttribute>::const_iterator cend() const { return m_Attributes.cend(); }
-
-	private:
-		void CalculateOffsetAndStride() {
-			uint32_t offset = 0;
-			m_Stride = 0;
-			for (auto& attribute : m_Attributes) {
-				attribute.offset = offset;
-				offset += attribute.size;
-				m_Stride += attribute.size;
-			}
-		}
-
-
-	private:
-		std::vector<BufferAttribute> m_Attributes;
-		uint32_t m_Stride;
+		Descriptor(uint32_t bindingNum, VkDescriptorType type, uint32_t count,
+				   VkPipelineStageFlags stage, const VkSampler* immutableSamplers = VK_NULL_HANDLE)
+		: binding({ .binding = bindingNum,
+			.descriptorType = type,
+			.descriptorCount = count,
+			.stageFlags = stage,
+			.pImmutableSamplers = immutableSamplers })
+		{}
 	};
 
-	class VertexBuffer {
+	class DescriptorSet {
 	public:
-		VertexBuffer();
-		VertexBuffer(BufferLayout layout, size_t size, bool persistantlyMapped = false);
-		VertexBuffer(const VertexBuffer&) = delete;
-		VertexBuffer(VertexBuffer&& other);
-		~VertexBuffer();
+		DescriptorSet();
+		DescriptorSet(std::initializer_list<Descriptor> descriptors);
+		virtual ~DescriptorSet();
 
-		VertexBuffer& operator=(const VertexBuffer&) = delete;
-		VertexBuffer& operator=(VertexBuffer&& other);
+		DescriptorSet(const DescriptorSet&) = delete;
+		DescriptorSet(DescriptorSet&& other);
 
-		void SetData(size_t size, size_t offset, const void* data);
-
-		BufferLayout GetLayout() const { return m_Layout; }
+		DescriptorSet& operator=(const DescriptorSet&) = delete;
+		DescriptorSet& operator=(DescriptorSet&& other);
 
 	private:
-		void FlushMemory();
-		void MapMemory();
-		void UnmapMemory();
-
-		// To use this buffer for buffer copy/usage, this function should be
-		// called instead of accessing member directly as it flushes data to the GPU.
-		VkBuffer& GetBuffer() { if (m_PersistantlyMapped) FlushMemory(); return m_Buffer; }
-
 		void FreeResources();
-
-	private:
-		BufferLayout m_Layout;
-		bool m_Initialized;
-
-		size_t m_Size;
-		VkBuffer m_Buffer;
-		VkDeviceMemory m_DeviceMemory;
-
-		bool m_HostVisable;
-		std::optional<void*> m_HostMappedAddress;
-
-		bool m_PersistantlyMapped;
-
-		friend Renderer;
-		friend StagingBuffer;
-	};
-
-	class IndexBuffer {
-	public:
-		IndexBuffer();
-		IndexBuffer(size_t size, bool persistantlyMapped = false);
-		IndexBuffer(const IndexBuffer&) = delete;
-		IndexBuffer(IndexBuffer&& other);
-		~IndexBuffer();
-
-		IndexBuffer& operator=(const IndexBuffer&) = delete;
-		IndexBuffer& operator=(IndexBuffer&& other);
-
-		void SetData(size_t size, size_t offset, const void* data);
-
-	private:
-		void FlushMemory();
-		void MapMemory();
-		void UnmapMemory();
-
-		VkBuffer GetBuffer() { if (m_PersistantlyMapped) FlushMemory(); return m_Buffer; }
-
-		void FreeResources();
-
 	private:
 		bool m_Initialized;
-
-		size_t m_Size;
-		VkBuffer m_Buffer;
-		VkDeviceMemory m_DeviceMemory;
-
-		bool m_HostVisable;
-		std::optional<void*> m_HostMappedAddress;
-
-		bool m_PersistantlyMapped;
-
-		friend Renderer;
-		friend StagingBuffer;
-	};
-
-	class UniformBuffer {
-	public:
-		UniformBuffer();
-		UniformBuffer(BufferLayout layout, size_t size, bool persistantlyMapped = false);
-		UniformBuffer(const UniformBuffer&) = delete;
-		UniformBuffer(UniformBuffer&& other);
-		~UniformBuffer();
-
-		UniformBuffer& operator=(const UniformBuffer&) = delete;
-		UniformBuffer& operator=(UniformBuffer&& other);
-
-		void SetData(size_t size, size_t offset, const void* data);
-
-	private:
-		void FlushMemory();
-		void MapMemory();
-		void UnmapMemory();
-
-		VkBuffer GetBuffer() { if (m_PersistantlyMapped) FlushMemory(); return m_Buffer; }
-		BufferLayout GetLayout() const { return m_Layout; }
-
-		void FreeResources();
-
-	private:
-		bool m_Initialized;
-
-		size_t m_Size;
-		VkBuffer m_Buffer;
-		VkDeviceMemory m_DeviceMemory;
-
-		bool m_HostVisable;
-		std::optional<void*> m_HostMappedAddress;
-
-		bool m_PersistantlyMapped;
-
-		BufferLayout m_Layout;
-
-		friend Renderer;
-		friend StagingBuffer;
-	};
-
-	class ImageBuffer {
-	public:
-		ImageBuffer();
-		ImageBuffer(const ImageBuffer&) = delete;
-		ImageBuffer(ImageBuffer&& other);
-		~ImageBuffer();
-
-		ImageBuffer& operator=(const ImageBuffer&) = delete;
-		ImageBuffer& operator=(ImageBuffer&& other);
-
-		void Clear(glm::vec4 clearColor);
-
-	private:
-		void TransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout);
-
-	private:
-		bool m_Initialized;
-
-		VkDevice m_Device;
-		VkCommandPool m_CommandPool;
-		VkQueue m_TransferQueue;
-
-		size_t m_Size;
-		VkImage m_Image;
-		VkImageView m_ImageView;
-		VkDeviceMemory m_DeviceMemory;
-
-		VkImageLayout m_Layout;
-
-		friend Renderer;
-		friend StagingBuffer;
-	};
-
-	class CubeMapBuffer {
-	public:
-		CubeMapBuffer();
-		CubeMapBuffer(uint32_t width, uint32_t height);
-		// Order: front, back, up, daown, left, right
-		CubeMapBuffer(std::vector<std::string> filenames);
-		CubeMapBuffer(const CubeMapBuffer&) = delete;
-		CubeMapBuffer(CubeMapBuffer&& other);
-		~CubeMapBuffer();
-
-		CubeMapBuffer& operator=(const CubeMapBuffer&) = delete;
-		CubeMapBuffer& operator=(CubeMapBuffer&& other);
-
-		void Clear(glm::vec4 clearColor);
-
-	private:
-		void TransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout);
-
-	private:
-		bool m_Initialized;
-
-		size_t m_Size;
-		VkExtent3D m_Extent;
-		VkImage m_Image;
-		VkDeviceMemory m_DeviceMemory;
-		VkImageView m_ImageView;
-
-		VkImageLayout m_Layout;
-
-		friend Renderer;
-		friend StagingBuffer;
-	};
-
-	class StagingBuffer {
-	public:
-		StagingBuffer();
-		StagingBuffer(size_t size, bool persistantlyMapped  =false);
-		StagingBuffer(const StagingBuffer&) = delete;
-		StagingBuffer(StagingBuffer&& other);
-		~StagingBuffer();
-
-		StagingBuffer& operator=(const StagingBuffer&) = delete;
-		StagingBuffer& operator=(StagingBuffer&& other);
-
-		int SetData(size_t size, size_t offset, const void* data);
-
-	private:
-		VkBuffer GetBuffer() { if (m_PersistantlyMapped) FlushMemory(); return m_Buffer; }
-
-		void FreeResources();
-
-		int BoundsCheck(size_t size, size_t srcSize, size_t dstSize, size_t srcOffset, size_t dstOddset);
-
-		int TransferDataInternal(VkBuffer src,
-								 VkBuffer dst,
-								 VkBufferCopy copyRegion);
-		int TransferDataInternalImmediate(VkBuffer src,
-										  VkBuffer dst,
-										  VkBufferCopy copyRegion);
-
-		void FlushMemory();
-		void MapMemory();
-		void UnmapMemory();
-
-	public:
-		int TransferData(VertexBuffer& vertexBuffer, size_t srcOffset, size_t dstOffset, size_t size);
-		int TransferData(IndexBuffer& indexBuffer, size_t srcOffset, size_t dstOffset, size_t size);
-		int TransferData(UniformBuffer& uniformBuffer, size_t srcOffset, size_t dstOffset, size_t size);
-		int TransferData(ImageBuffer& imageBuffer, size_t srcOffset, size_t dstOffset, uint32_t width, uint32_t height);
-		int TransferData(CubeMapBuffer& imageBuffer, size_t srcOffset);
-
-		int TransferDataImmediate(VertexBuffer& vertexBuffer, size_t srcOffset, size_t dstOffset, size_t size);
-		int TransferDataImmediate(IndexBuffer& indexBuffer, size_t srcOffset, size_t dstOffset, size_t size);
-		int TransferDataImmediate(UniformBuffer& uniformBuffer, size_t srcOffset, size_t dstOffset, size_t size);
-		int TransferDataImmediate(ImageBuffer& imageBuffer, size_t srcOffset, size_t dstOffset, uint32_t width, uint32_t height);
-		int TransferDataImmediate(CubeMapBuffer& imageBuffer, size_t srcOffset);
-
-	private:
-		bool m_Initialized;
-
-		size_t m_Size;
-		VkBuffer m_Buffer;
-		VkDeviceMemory m_DeviceMemory;
-
-		std::optional<void*> m_MappedMemoryAddress;
-		bool m_PersistantlyMapped;
-
-		friend Renderer;
+		std::vector<Descriptor> m_Descriptors;
+		VkDescriptorSet m_Set;
 	};
 
 	class DescriptorManager {
@@ -454,10 +229,18 @@ namespace cee {
 		DescriptorManager& operator=(const DescriptorManager&) = delete;
 		DescriptorManager& operator=(DescriptorManager&& other);
 
+		void Reserve();
+		void AddSet(const DescriptorSet& set);
+		void RemoveSet(const DescriptorSet& set);
+		void Clear();
+
+	private:
+		void FreeResources();
+
 	private:
 		VkDescriptorPool m_Pool;
 		VkDescriptorSetLayout m_Layout;
-		std::vector<VkDescriptorSet> m_Sets;
+		std::vector<DescriptorSet> m_Sets;
 	};
 
 	enum class PrimitiveTopology {
@@ -494,10 +277,10 @@ namespace cee {
 		VkPipeline m_Pipeline;
 	};
 
-	class Renderer {
+	class oldRenderer {
 	public:
-		Renderer(const RendererCapabilities& capabilities, std::shared_ptr<cee::Window> window);
-		~Renderer();
+		oldRenderer(const RendererCapabilities& capabilities, std::shared_ptr<cee::Window> window);
+		~oldRenderer();
 
 		int Init();
 		void Shutdown();
@@ -515,7 +298,7 @@ namespace cee {
 		int UpdateCamera(Camera& camera);
 		void UpdateSkybox(CubeMapBuffer& newSkybox);
 
-		static Renderer* Get() { return s_Instance; }
+		static oldRenderer* Get() { return s_Instance; }
 
 		VkDevice GetDevice() { return m_Device; }
 		VkPhysicalDeviceMemoryProperties GetDeviceMemoryProperties() const {
@@ -706,7 +489,8 @@ namespace cee {
 		VkDebugUtilsMessengerEXT m_DebugMessenger;
 
 	private:
-		static Renderer* s_Instance;
+		static oldRenderer* s_Instance;
+		static VulkanContext* s_Context;
 
 	private:
 		friend StagingBuffer;
@@ -749,6 +533,7 @@ namespace cee {
 
 		return transform;
 	}
+	VkFormat CeeFormatToVkFormat(::cee::Format foramt);
 }
 
 #endif
