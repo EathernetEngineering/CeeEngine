@@ -35,29 +35,39 @@
 
 #define CEE_ENABLE_VERIFY
 
-#if defined(CEE_ENABLE_ASSERT)
-#	define CEE_ASSERT_MESSAGE(...) do { \
-		::cee::DebugMessenger::PostAssertMessage(::cee::ERROR_SEVERITY_ERROR, "Assertion Failed", #__VA_ARGS__); \
-	} while (0)
+// Check for support of __VA_OPT__, this is supported by MSVC and GCC, but not Clang
+#define VA_OPT_SUPPORT_THRID_ARG(a, b, c, ...) c
+#define INTERNAL_VA_OPT_SUPPORT(...) VA_OPT_SUPPORT_THRID_ARG(__VA_OPT__(,),true,false)
+#define VA_OPT_SUPPORT INTERNAL_VA_OPT_SUPPORT(?)
 
-# define CEE_ASSERT(x, ...) do { if (!(x)) { CEE_ASSERT_MESSAGE(__VA_ARGS__); CEE_DEBUG_BREAK(); } } while(0)
+#if defined(CEE_ENABLE_ASSERT)
+#	if VA_OPT_SUPPORT == true
+#		define INTERNAL_CEE_ASSERT(...) do { \
+			::cee::DebugMessenger::PostAssertMessage(::cee::ERROR_SEVERITY_ERROR, "Assertion Failed" __VA_OPT__(,) __VA_ARGS__); \
+		} while (0)
+#	else
+#		define INTERNAL_CEE_ASSERT(...) do { \
+			::cee::DebugMessenger::PostAssertMessage(::cee::ERROR_SEVERITY_ERROR, "Assertion Failed", #__VA_ARGS__); \
+		} while (0)
+#	endif
+# define CEE_ASSERT(x, ...) do { if (!(x)) { INTERNAL_CEE_ASSERT(__VA_ARGS__); CEE_DEBUG_BREAK(); } } while(0)
 #else
 #	define CEE_ASSERT(x, ...)
 #endif
 
 #if defined(CEE_ENABLE_VERIFY)
-#	define CEE_VERIFY(x, msg) do { \
-	if (!(x)) { \
-			char message[4096]; \
-			sprintf(message, "Assertion \"%s\" failed %s:%u", #x, __FILE__, __LINE__); \
-			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, message); \
-			sprintf(message, "Message:%s", #msg); \
-			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, message); \
-			CEE_DEBUG_BREAK(); \
-		} \
-	} while (0)
+#	if VA_OPT_SUPPORT == true
+#		define INTERNAL_CEE_VERIFY(...) do { \
+			::cee::DebugMessenger::PostAssertMessage(::cee::ERROR_SEVERITY_ERROR, "Assertion Failed: " __VA_OPT__(,) __VA_ARGS__); \
+		} while (0)
+#	else
+#		define INTERNAL_CEE_VERIFY(...) do { \
+			::cee::DebugMessenger::PostAssertMessage(::cee::ERROR_SEVERITY_ERROR, "Assertion Failed: ", #__VA_ARGS__); \
+		} while (0)
+#	endif
+#	define CEE_VERIFY(x, ...) do { if (!(x)) { INTERNAL_CEE_VERIFY(__VA_ARGS__); CEE_DEBUG_BREAK(); } } while(0)
 #else
-#	define CEE_VERIFY(x, msg)
+#	define CEE_VERIFY(x, ...)
 #endif
 
 #endif

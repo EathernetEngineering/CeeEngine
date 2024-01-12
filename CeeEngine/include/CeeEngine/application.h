@@ -27,6 +27,7 @@
 #include <CeeEngine/debugLayer.h>
 #include <CeeEngine/window.h>
 #include <CeeEngine/debugMessenger.h>
+#include <CeeEngine/renderer/renderThread.h>
 
 #include <memory>
 #include <thread>
@@ -58,7 +59,7 @@ namespace cee {
 		DebugLayer* m_DebugLayer;
 		std::shared_ptr<Window> m_Window;
 
-		std::thread m_RenderThread;
+		RenderThread m_RenderThread;
 
 		uint64_t m_AverageFrameTime;
 

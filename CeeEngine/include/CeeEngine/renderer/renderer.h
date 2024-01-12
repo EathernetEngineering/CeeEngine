@@ -20,6 +20,9 @@
 #define CEE_ENGINE_RENDERER_H_
 
 #include <CeeEngine/application.h>
+#include <CeeEngine/renderer/renderThreadQueue.h>
+#include <CeeEngine/renderer/renderThread.h>
+#include <type_traits>
 
 namespace cee {
 
@@ -31,6 +34,31 @@ namespace cee {
 		static void Shutdown();
 
 		static std::shared_ptr<VulkanContext> GetContext() { return Application::Get()->GetWindow()->GetContext(); }
+
+		static void BeginFrame();
+		static void EndFrame();
+
+		template<typename F>
+		static void Submit(F&& function) {
+			static_assert(std::is_trivially_destructible_v<F>, "Objects must be trivially destructible.");
+			auto wrapper = [](void* pFunction){
+				(*(F*)pFunction)();
+			};
+			void* functionAddress = GetRenderQueue().Submit(wrapper, sizeof(function));
+			new (functionAddress) F(std::forward<F>(function));
+		}
+
+		static void RenderThreadFucntion(RenderThread* thread);
+		static void WaitAndRender(RenderThread* thread);
+		static RenderThreadQueue& GetRenderQueue();
+		static size_t GetQueueIndex();
+		static size_t GetQueueSubmissionIndex();
+
+		static void SwapQueues();
+
+
+	private:
+		Renderer* s_Instance;
 	};
 }
 

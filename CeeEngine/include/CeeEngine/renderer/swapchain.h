@@ -28,6 +28,8 @@
 namespace cee {
 	class Swapchain {
 	public:
+		VkImage GetImage() { return m_Images[m_ImageIndex].Image; }
+
 		Swapchain() = default;
 		virtual ~Swapchain() = default;
 

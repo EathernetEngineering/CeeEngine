@@ -25,7 +25,7 @@ option(CEE_ENGINE_USE_AFTERMATH "compile with compatibility with Nvidia Nsight" 
 
 if(WIN32)
 	message(STATUS ">>> WINDOWS BUILD")
-	list(APPEND SOURCES src/windows_util.cpp)
+	list(APPEND SOURCES src/windows_util.cpp src/windows_thread.cpp src/renderer/windows_renderThread.cpp)
 elseif(UNIX AND NOT APPLE)
 	message(STATUS ">>> LINUX BUILD")
 	include(GNUInstallDirs)
@@ -39,7 +39,7 @@ elseif(UNIX AND NOT APPLE)
 	list(APPEND LIBRARIES ${X11_LIBRARIES} xkbcommon xkbcommon-x11)
 	list(APPEND INCLUDES ${X11_INCLUDE_DIRS})
 	list(APPEND DEFINES VK_USE_PLATFORM_XCB_KHR)
-	list(APPEND SOURCES src/linux_util.cpp)
+	list(APPEND SOURCES src/linux_util.cpp src/linux_thread.cpp src/renderer/linux_renderThread.cpp)
 elseif(APPLE)
 	message(STATUS ">>> APPLE BUILD")
 else()
@@ -52,7 +52,7 @@ if(NOT ${Vulkan_FOUND})
 endif()
 
 list(APPEND SOURCES src/application.cpp src/layer.cpp src/timestep.cpp src/window.cpp src/messageBus.cpp src/debugLayer.cpp src/debugMessenger.cpp src/libimpl.cpp src/input.cpp src/camera.cpp src/util.cpp)
-list(APPEND SOURCES src/renderer.cpp src/renderer/buffers.cpp src/renderer2D.cpp src/renderer3D.cpp src/renderer/renderer.cpp src/renderer/context.cpp src/renderer/swapchain.cpp src/renderer/device.cpp)
+list(APPEND SOURCES src/renderer.cpp src/renderer/buffers.cpp src/renderer2D.cpp src/renderer3D.cpp src/renderer/renderer.cpp src/renderer/context.cpp src/renderer/swapchain.cpp src/renderer/device.cpp src/renderer/renderThreadQueue.cpp )#src/renderer/renderThread.cpp)
 
 list(APPEND INSTALLHEADERS include/CeeEngine/application.h include/CeeEngine/assert.h include/CeeEngine/camera.h include/CeeEngine/debugMessenger.h include/CeeEngine/event.h include/CeeEngine/input.h include/CeeEngine/keyCodes.h include/CeeEngine/layer.h include/CeeEngine/platform.h include/CeeEngine/timestep.h include/CeeEngine/util.h include/CeeEngine/window.h)
 

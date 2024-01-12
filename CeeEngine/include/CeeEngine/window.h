@@ -63,6 +63,8 @@ namespace cee {
 		std::shared_ptr<VulkanContext> GetContext() { return m_RendererContext; }
 		Swapchain* GetSwapchain() { return m_Swapchain; }
 
+		void SwapBuffers();
+
 		void SetTitle(const std::string& title);
 		void SetWidth(uint32_t width);
 		void SetHeight(uint32_t height);

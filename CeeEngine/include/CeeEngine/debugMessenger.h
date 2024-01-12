@@ -23,6 +23,10 @@
 
 #include <vulkan/vulkan.h>
 
+#include <cstring>
+
+#include <signal.h>
+
 namespace cee {
 	enum ErrorSeverity {
 		ERROR_SEVERITY_DEBUG    = 1 << 0,
@@ -57,18 +61,22 @@ namespace cee {
 		static void PostDebugMessage(ErrorSeverity severity, const char* fmt...);
 
 		template<typename... Args>
-		static void PostAssertMessage(ErrorSeverity severity, const char* prefix, Args&&... args);
+		static void PostAssertMessage(ErrorSeverity severity, const char* prefix, const char* fmt, Args&&... args)  {
+			size_t prefixStrLen = strlen(prefix);
+			size_t fmtStrLen = strlen(fmt);
+			char* newFmt = reinterpret_cast<char*>(malloc(prefixStrLen + fmtStrLen + 1));
+			memcpy(newFmt, prefix, prefixStrLen);
+			memcpy(newFmt + prefixStrLen, fmt, fmtStrLen);
+			newFmt[static_cast<int32_t>(prefixStrLen + fmtStrLen)] = 0;
+
+			DebugMessenger::PostDebugMessage(severity, newFmt, std::forward<Args>(args)...);
+			free(newFmt);
+		}
+
+		static inline void PostAssertMessage(ErrorSeverity severity, const char* prefix) {
+			DebugMessenger::PostDebugMessage(severity, prefix);
+		}
 	};
-
-	template<typename... Args>
-	void DebugMessenger::PostAssertMessage(ErrorSeverity severity, const char* prefix, Args&&... args) {
-		DebugMessenger::PostDebugMessage(severity, "%s: %s", prefix, std::forward<Args>(args)...);
-	}
-
-	template<>
-	inline void DebugMessenger::PostAssertMessage(ErrorSeverity severity, const char* prefix) {
-		DebugMessenger::PostDebugMessage(severity, prefix);
-	}
 }
 
 #endif

@@ -74,18 +74,14 @@ namespace cee {
 		m_WmProtocolsCookie = xcb_intern_atom(s_Connection, 1, 12, "WM_PROTOCOLS");
 		m_WmProtocolsReply = xcb_intern_atom_reply(s_Connection, m_WmProtocolsCookie, &error);
 		if (error) {
-			char message[256];
-			sprintf(message, "XCB Error code from cookie \"WM_PROTOCOLS\": %hhu", error->error_code);
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "XCB Error code from cookie \"WM_PROTOCOLS\": %hhu", error->error_code);
 			free(error);
 		}
 		error = NULL;
 		m_WmDeleteCookie = xcb_intern_atom(s_Connection, 0, 16, "WM_DELETE_WINDOW");
 		m_WmDeleteReply = xcb_intern_atom_reply(s_Connection, m_WmDeleteCookie, &error);
 		if (error) {
-			char message[256];
-			sprintf(message, "XCB Error code from cookie \"WM_DELETE_WINDOW\": %hhu", error->error_code);
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, message);
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "XCB Error code from cookie \"WM_DELETE_WINDOW\": %hhu", error->error_code);
 			free(error);
 		}
 
@@ -113,9 +109,7 @@ namespace cee {
 		xcb_get_geometry_cookie_t geometryCookie = xcb_get_geometry(s_Connection, m_Wnd);
 		xcb_get_geometry_reply_t* geometryReply = xcb_get_geometry_reply(s_Connection, geometryCookie, NULL);
 		if (geometryReply) {
-			char message[512];
-			sprintf(message, "Actual window size: %hux%hu\tRequested window size: %ux%u", geometryReply->width, geometryReply->height, m_Specification.width, m_Specification.height);
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Actual window size: %hux%hu\tRequested window size: %ux%u", geometryReply->width, geometryReply->height, m_Specification.width, m_Specification.height);
 			m_Specification.width = geometryReply->width;
 			m_Specification.height = geometryReply->height;
 			free(geometryReply);
@@ -130,6 +124,17 @@ namespace cee {
 		m_Swapchain->Init(m_RendererContext->GetInstance(), m_RendererContext->GetDevice());
 		m_Swapchain->InitSurface(s_Connection, m_Wnd);
 
+		m_Swapchain->Create(&m_Specification.width, &m_Specification.height, 1);
+
+		geometryCookie = xcb_get_geometry(s_Connection, m_Wnd);
+		geometryReply = xcb_get_geometry_reply(s_Connection, geometryCookie, NULL);
+		if (geometryReply) {
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Window size: %hux%hu\tCreated swapchain size: %hux%hu", geometryReply->width, geometryReply->height, m_Specification.width, m_Specification.height);
+			m_Specification.width = geometryReply->width;
+			m_Specification.height = geometryReply->height;
+			free(geometryReply);
+		}
+
 		s_WindowCount++;
 	}
 
@@ -142,6 +147,10 @@ namespace cee {
 			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO, "Closing connection to XCB server.");
 			s_Connection = NULL;
 		}
+	}
+
+	void Window::SwapBuffers() {
+		m_Swapchain->Present();
 	}
 
 	void Window::SetTitle(const std::string& title)
@@ -160,17 +169,38 @@ namespace cee {
 	void Window::SetWidth(uint32_t width)
 	{
 		xcb_configure_window(s_Connection, m_Wnd, XCB_CONFIG_WINDOW_WIDTH, &width);
+		xcb_get_geometry_cookie_t geometryCookie = xcb_get_geometry(s_Connection, m_Wnd);
+		xcb_get_geometry_reply_t* geometryReply = xcb_get_geometry_reply(s_Connection, geometryCookie, NULL);
+		if (geometryReply) {
+			m_Specification.width = geometryReply->width;
+			m_Specification.height = geometryReply->height;
+			free(geometryReply);
+		}
 	}
 
 	void Window::SetHeight(uint32_t height)
 	{
 		xcb_configure_window(s_Connection, m_Wnd, XCB_CONFIG_WINDOW_HEIGHT, &height);
+		xcb_get_geometry_cookie_t geometryCookie = xcb_get_geometry(s_Connection, m_Wnd);
+		xcb_get_geometry_reply_t* geometryReply = xcb_get_geometry_reply(s_Connection, geometryCookie, NULL);
+		if (geometryReply) {
+			m_Specification.width = geometryReply->width;
+			m_Specification.height = geometryReply->height;
+			free(geometryReply);
+		}
 	}
 
 	void Window::SetSize(uint32_t width, uint32_t height)
 	{
 		xcb_configure_window(s_Connection, m_Wnd, XCB_CONFIG_WINDOW_WIDTH, &width);
 		xcb_configure_window(s_Connection, m_Wnd, XCB_CONFIG_WINDOW_HEIGHT, &height);
+		xcb_get_geometry_cookie_t geometryCookie = xcb_get_geometry(s_Connection, m_Wnd);
+		xcb_get_geometry_reply_t* geometryReply = xcb_get_geometry_reply(s_Connection, geometryCookie, NULL);
+		if (geometryReply) {
+			m_Specification.width = geometryReply->width;
+			m_Specification.height = geometryReply->height;
+			free(geometryReply);
+		}
 	}
 
 	NativeWindowConnection* Window::GetNativeConnection() const

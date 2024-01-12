@@ -51,8 +51,9 @@ private:
 };
 
 GameLayer::GameLayer::GameLayer()
-: m_Camera(60.0f, 1.77778, 0.001f, 256.0f)
+: m_Camera(60.0f, 1.77778f, 0.001f, 256.0f)
 {
+
 }
 
 GameLayer::~GameLayer()
