@@ -9,11 +9,11 @@
 #include <memory>
 
 namespace cee {
-	namespace Input {
-		void Init(MessageBus* messageBus, std::shared_ptr<Window> window);
-		void Shutdown();
-		int GetKeyState(KeyCode keycode);
-	}
+namespace Input {
+	void Init(MessageBus* messageBus, std::shared_ptr<Window> window);
+	void Shutdown();
+	int GetKeyState(KeyCode keycode);
+}
 }
 
 #endif

@@ -6,24 +6,24 @@
 
 
 namespace cee {
-	class DebugLayer : public Layer {
-	public:
-		DebugLayer();
-		~DebugLayer();
+class DebugLayer : public Layer {
+public:
+	DebugLayer();
+	~DebugLayer();
 
-		void OnAttach() override;
-		void OnDetach() override;
+	void OnAttach() override;
+	void OnDetach() override;
 
-		void OnUpdate(Timestep t) override;
-		void OnRender() override;
-		void OnGui() override;
+	void OnUpdate(Timestep t) override;
+	void OnRender() override;
+	void OnGui() override;
 
-		void OnEnable() override;
-		void OnDisable() override;
+	void OnEnable() override;
+	void OnDisable() override;
 
-	protected:
-		void MessageHandler(Event& e) override;
-	};
+protected:
+	void MessageHandler(Event& e) override;
+};
 }
 
 #endif

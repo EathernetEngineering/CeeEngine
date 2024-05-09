@@ -9,23 +9,23 @@
 #include <CeeEngine/event.h>
 
 namespace cee {
-	class MessageBus {
-		public:
-			MessageBus();
-			~MessageBus();
+class MessageBus {
+	public:
+		MessageBus();
+		~MessageBus();
 
-			void DispatchEvents(void);
-			void Stop(void);
+		void DispatchEvents(void);
+		void Stop(void);
 
-			void PostMessage(Event* e);
-			void PostMessageImmedate(Event* e);
+		void PostMessage(Event* e);
+		void PostMessageImmedate(Event* e);
 
-			void RegisterMessageHandler(std::function<void(Event&)> handler);
+		void RegisterMessageHandler(std::function<void(Event&)> handler);
 
-	private:
-		std::list<Event*> m_MessageQueue;
-		std::vector<std::function<void(Event&)>> m_Handlers;
-	};
+private:
+	std::list<Event*> m_MessageQueue;
+	std::vector<std::function<void(Event&)>> m_Handlers;
+};
 }
 
 #endif

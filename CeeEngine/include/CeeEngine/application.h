@@ -13,42 +13,41 @@
 
 #include <memory>
 #include <thread>
-
 namespace cee {
-	class CEEAPI Application {
-	public:
-		Application();
-		virtual ~Application();
+class CEEAPI Application {
+public:
+	Application();
+	virtual ~Application();
 
-		void CEECALL Run();
+	void CEECALL Run();
 
-		bool CEECALL OnEvent(Event& e);
+	bool CEECALL OnEvent(Event& e);
 
-		void CEECALL PushLayer(Layer* layer);
-		void CEECALL PushOverlay(Layer* overlay);
+	void CEECALL PushLayer(Layer* layer);
+	void CEECALL PushOverlay(Layer* overlay);
 
-		void CEECALL Close();
+	void CEECALL Close();
 
-	private:
-		MessageBus m_MessageBus;
-		bool m_Running;
-		LayerStack m_LayerStack;
+private:
+	MessageBus m_MessageBus;
+	bool m_Running;
+	LayerStack m_LayerStack;
 
-		DebugLayer* m_DebugLayer;
+	DebugLayer* m_DebugLayer;
 
-		std::shared_ptr<Renderer> m_Renderer;
-		std::shared_ptr<Window> m_Window;
+	std::shared_ptr<Renderer> m_Renderer;
+	std::shared_ptr<Window> m_Window;
 
-		VertexBuffer m_VertexBuffer;
-		IndexBuffer m_IndexBuffer;
+	VertexBuffer m_VertexBuffer;
+	IndexBuffer m_IndexBuffer;
 
-		std::thread m_RenderThread;
+	std::thread m_RenderThread;
 
-		uint64_t m_AverageFrameTime;
+	uint64_t m_AverageFrameTime;
 
-	private:
-		static Application* s_Instance;
-	};
+private:
+	static Application* s_Instance;
+};
 }
 
 #endif

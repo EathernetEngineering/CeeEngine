@@ -5,50 +5,49 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace cee {
-	class Camera {
-	public:
-		Camera() = default;
-		Camera(const glm::mat4& projection);
+class Camera {
+public:
+	Camera() = default;
+	Camera(const glm::mat4& projection);
 
-	public:
-		glm::mat4 GetProjection() { return m_Projection; }
-		const glm::mat4& GetProjection() const { return m_Projection; }
+public:
+	glm::mat4 GetProjection() { return m_Projection; }
+	const glm::mat4& GetProjection() const { return m_Projection; }
 
-		glm::mat4 GetTransform() { return m_Transform; }
-		const glm::mat4& GetTransform() const { return m_Transform; }
+	glm::mat4 GetTransform() { return m_Transform; }
+	const glm::mat4& GetTransform() const { return m_Transform; }
 
-		void SetPosition(const glm::vec3& position);
-		void Translate(const glm::vec3& translateBy);
-		void SetRotation(const glm::vec3& vector);
-		void Rotate(float angle, const glm::vec3& vector);
+	void SetPosition(const glm::vec3& position);
+	void Translate(const glm::vec3& translateBy);
+	void SetRotation(const glm::vec3& vector);
+	void Rotate(float angle, const glm::vec3& vector);
 
-	protected:
-		glm::vec3 m_Postition = { 0.0f, 0.0f, 0.0f };
-		glm::vec3 m_Rotation = { 0.0f, 0.0f, 0.0f };
+protected:
+	glm::vec3 m_Postition = { 0.0f, 0.0f, 0.0f };
+	glm::vec3 m_Rotation = { 0.0f, 0.0f, 0.0f };
 
-		glm::mat4 m_Projection;
-		glm::mat4 m_Transform;
-	};
+	glm::mat4 m_Projection;
+	glm::mat4 m_Transform;
+};
 
-	class OrthographicCamera : public Camera {
-	public:
-		OrthographicCamera(float left, float right, float bottom, float top, float nearZ, float farZ);
-		OrthographicCamera(float zoom, float aspectRatio, float nearZ, float farZ);
+class OrthographicCamera : public Camera {
+public:
+	OrthographicCamera(float left, float right, float bottom, float top, float nearZ, float farZ);
+	OrthographicCamera(float zoom, float aspectRatio, float nearZ, float farZ);
 
-	private:
-		float m_Zoom;
-	};
+private:
+	float m_Zoom;
+};
 
-	class PerspectiveCamera : public Camera {
-	public:
-		PerspectiveCamera(float fov = 60.0f, float aspectRatio = 1.778f, float nearZ = 0.001f, float farZ = 256.0f);
+class PerspectiveCamera : public Camera {
+public:
+	PerspectiveCamera(float fov = 60.0f, float aspectRatio = 1.778f, float nearZ = 0.001f, float farZ = 256.0f);
+	void SetFov(float newFov);
+	float GetFov() const { return m_Fov; }
 
-		void SetFov(float newFov);
-		float GetFov() const { return m_Fov; }
-
-	private:
-		float m_Fov, m_AspectRatio, m_NearZ, m_FarZ;
-	};
+private:
+	float m_Fov, m_AspectRatio, m_NearZ, m_FarZ;
+};
 }
 
 #endif

@@ -5,13 +5,13 @@
 #include <cstdint>
 
 namespace cee {
-	struct Timestep {
-		time_t sec;
-		uint64_t nsec;
-	};
+struct Timestep {
+	time_t sec;
+	uint64_t nsec;
+};
 
-	void GetTime(Timestep *t);
-	void GetTimeStep(Timestep *start, Timestep *end, Timestep *result);
+void GetTime(Timestep *t);
+void GetTimeStep(Timestep *start, Timestep *end, Timestep *result);
 }
 
 #endif

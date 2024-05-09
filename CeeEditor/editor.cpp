@@ -4,6 +4,7 @@
 #include <CeeEngine/renderer3D.h>
 #include <CeeEngine/camera.h>
 
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
 #include <chrono>
 

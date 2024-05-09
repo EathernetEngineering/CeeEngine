@@ -13,6 +13,7 @@ elseif(UNIX AND NOT APPLE)
 		message(SEND_ERROR "Failed to find X11")
 	endif()
 
+	list(APPEND SOURCES linux_util.cpp)
 	list(APPEND LIBRARIES m pthread)
 	list(APPEND LIBRARIES ${X11_LIBRARIES} xkbcommon xkbcommon-x11)
 	list(APPEND INCLUDES ${X11_INCLUDE_DIRS})
@@ -27,7 +28,7 @@ if(NOT ${Vulkan_FOUND})
 	message(SEND_ERROR "Failed to find Vulkan")
 endif()
 
-list(APPEND SOURCES application.cpp layer.cpp timestep.cpp window.cpp renderer.cpp messageBus.cpp debugLayer.cpp debugMessenger.cpp libimpl.cpp input.cpp renderer2D.cpp renderer3D.cpp camera.cpp)
+list(APPEND SOURCES application.cpp layer.cpp timestep.cpp window.cpp renderer.cpp messageBus.cpp debugLayer.cpp debugMessenger.cpp libimpl.cpp input.cpp renderer2D.cpp renderer3D.cpp camera.cpp assetManager.cpp)
 list(APPEND INCLUDES include/ ${Vulkan_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/vendor/glm/include)
 list(APPEND LIBRARIES ${Vulkan_LIBRARY})
 
