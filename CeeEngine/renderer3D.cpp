@@ -136,26 +136,25 @@ bool Renderer3D::s_Initialized = false;
 MessageBus* Renderer3D::s_MessageBus = NULL;;
 std::shared_ptr<Renderer> Renderer3D::s_Renderer = NULL;
 
-int32_t Renderer3D::Init(MessageBus* msgBus, std::shared_ptr<Window> window) {
+int32_t Renderer3D::Init(const RendererSpec& spec) {
 	if (s_Initialized == true) {
 		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
 										 "Renderer3D::Init called more than once.");
 		return -1;
 	}
+	s_MessageBus = spec.msgBus;
 
-	s_MessageBus = msgBus;
-	msgBus->RegisterMessageHandler(Renderer3D::MessageHandler);
+	s_MessageBus->RegisterMessageHandler(Renderer3D::MessageHandler);
 
 	RendererCapabilities rendererCapabilities = {};
 	rendererCapabilities.applicationName = "CeeEngine Application";
 	rendererCapabilities.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	rendererCapabilities.maxFramesInFlight = 3;
 	rendererCapabilities.maxIndices = 10000;
-	rendererCapabilities.useRenderDocLayer = true;
 	rendererCapabilities.rendererMode = RENDERER_MODE_3D;
 	s_RendererCapabilities = rendererCapabilities;
 
-	s_Renderer = std::make_shared<Renderer>(rendererCapabilities, window);
+	s_Renderer = std::make_shared<Renderer>(spec, rendererCapabilities);
 	int32_t ret = s_Renderer->Init();
 	if (ret != 0) {
 		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,

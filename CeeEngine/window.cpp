@@ -11,8 +11,8 @@ std::unordered_map<NativeWindowHandle, Window*> Window::s_WindowPointers;
 NativeWindowConnection* Window::s_Connection = NULL;
 int Window::s_WindowCount = 0;
 
-Window::Window(MessageBus* messageBus, const WindowSpecification& spec)
- : m_MessageBus(messageBus), m_ShouldClose(true), m_Specification(spec), m_Wnd(0)
+Window::Window(const WindowSpec& spec)
+ : m_MessageBus(spec.msgBus), m_ShouldClose(true), m_Spec(spec), m_Wnd(0)
 {
 	if (s_Connection == NULL) {
 		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO, "Opening connection to XCB server.");
@@ -42,7 +42,7 @@ Window::Window(MessageBus* messageBus, const WindowSpecification& spec)
 					  m_Wnd,
 					  screen->root,
 					  0, 0,
-					  m_Specification.width, m_Specification.height,
+					  m_Spec.width, m_Spec.height,
 					  0,
 					  XCB_WINDOW_CLASS_INPUT_OUTPUT,
 					  screen->root_visual,
@@ -84,8 +84,8 @@ Window::Window(MessageBus* messageBus, const WindowSpecification& spec)
 						XCB_ATOM_WM_NAME,
 						XCB_ATOM_STRING,
 						8,
-						m_Specification.title.length(),
-						m_Specification.title.c_str());
+						m_Spec.title.length(),
+						m_Spec.title.c_str());
 
 	xcb_map_window(s_Connection, m_Wnd);
 	xcb_flush(s_Connection);
@@ -94,10 +94,10 @@ Window::Window(MessageBus* messageBus, const WindowSpecification& spec)
 	xcb_get_geometry_reply_t* geometryReply = xcb_get_geometry_reply(s_Connection, geometryCookie, NULL);
 	if (geometryReply) {
 		char message[512];
-		sprintf(message, "Actual window size: %hux%hu\tRequested window size: %ux%u", geometryReply->width, geometryReply->height, m_Specification.width, m_Specification.height);
+		sprintf(message, "Actual window size: %hux%hu\tRequested window size: %ux%u", geometryReply->width, geometryReply->height, m_Spec.width, m_Spec.height);
 		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
-		m_Specification.width = geometryReply->width;
-		m_Specification.height = geometryReply->height;
+		m_Spec.width = geometryReply->width;
+		m_Spec.height = geometryReply->height;
 		free(geometryReply);
 	}
 
@@ -119,15 +119,15 @@ Window::~Window()
 
 void Window::SetTitle(const std::string& title)
 {
-	m_Specification.title = title;
+	m_Spec.title = title;
 	xcb_change_property(s_Connection,
 						XCB_PROP_MODE_REPLACE,
 						m_Wnd,
 						XCB_ATOM_WM_NAME,
 						XCB_ATOM_STRING,
 						8,
-						m_Specification.title.length(),
-						m_Specification.title.c_str());
+						m_Spec.title.length(),
+						m_Spec.title.c_str());
 }
 
 void Window::SetWidth(uint32_t width)
@@ -163,14 +163,14 @@ void Window::PollEvents() {
 		switch (e->response_type & ~0x80) {
 		case XCB_CONFIGURE_NOTIFY:
 			owner = s_WindowPointers[((xcb_configure_notify_event_t*)e)->window];
-			if (owner->m_Specification.width != ((xcb_configure_notify_event_t*)e)->width ||
-				owner->m_Specification.height != ((xcb_configure_notify_event_t*)e)->height)
+			if (owner->m_Spec.width != ((xcb_configure_notify_event_t*)e)->width ||
+				owner->m_Spec.height != ((xcb_configure_notify_event_t*)e)->height)
 			{
-				owner->m_Specification.width = ((xcb_configure_notify_event_t*)e)->width;
-				owner->m_Specification.height = ((xcb_configure_notify_event_t*)e)->height;
+				owner->m_Spec.width = ((xcb_configure_notify_event_t*)e)->width;
+				owner->m_Spec.height = ((xcb_configure_notify_event_t*)e)->height;
 				WindowResizeEvent* event = new WindowResizeEvent(
-					owner->m_Specification.width,
-					owner->m_Specification.height);
+					owner->m_Spec.width,
+					owner->m_Spec.height);
 
 				owner->m_MessageBus->PostMessage(event);
 			}

@@ -5,7 +5,7 @@
 namespace cee {
 std::function<void(CeeErrorSeverity, const char*, void*)> DebugMessenger::s_Messenger = DebugMessenger::DefaultHandler;
 void* DebugMessenger::s_UserData = NULL;
-CeeErrorSeverity DebugMessenger::s_ReportErrorLevels = (CeeErrorSeverity)0b1111;
+CeeErrorSeverity DebugMessenger::s_ReportErrorLevels = (CeeErrorSeverity)(ERROR_SEVERITY_DEBUG | ERROR_SEVERITY_INFO | ERROR_SEVERITY_WARNING | ERROR_SEVERITY_ERROR);
 
 void DebugMessenger::RegisterDebugMessenger(CeeErrorSeverity messageTypes,
 											void* userData,

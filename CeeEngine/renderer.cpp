@@ -949,9 +949,8 @@ int StagingBuffer::TransferDataImmediate(CubeMapBuffer& imageBuffer, size_t srcO
 
 Renderer* Renderer::s_Instance = NULL;
 
-Renderer::Renderer(const RendererCapabilities& capabilities,
-				   std::shared_ptr<Window> window)
- : m_Capabilites(capabilities), m_Window(window),
+Renderer::Renderer(const RendererSpec& spec, const RendererCapabilities& capabilities)
+ : m_Capabilites(capabilities), m_EnableValidationLayers(spec.enableValidationLayers), m_Window(spec.window),
    m_Instance(VK_NULL_HANDLE), m_PhysicalDevice(VK_NULL_HANDLE), m_PhysicalDeviceProperties({}),
    m_Device(VK_NULL_HANDLE), m_Surface(VK_NULL_HANDLE), m_Swapchain(VK_NULL_HANDLE),
    m_DepthImage(ImageBuffer()), m_RenderPass(VK_NULL_HANDLE), m_PipelineLayout(VK_NULL_HANDLE),
@@ -1032,16 +1031,16 @@ int Renderer::Init()
 		}
 
 		for (uint32_t i = 0; i < layerPropertiesCount; i++) {
-#ifndef NDEBUG
-			if (strcmp(layerProperties[i].layerName, "VK_LAYER_KHRONOS_validation") == 0) {
-				enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
-				char message[512];
-				sprintf(message, "Using Vulkan layer %s.", layerProperties[i].layerName);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
-				continue;
+			if (m_EnableValidationLayers) {
+				if (strcmp(layerProperties[i].layerName, "VK_LAYER_KHRONOS_validation") == 0) {
+					enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
+					char message[512];
+					sprintf(message, "Using Vulkan layer %s.", layerProperties[i].layerName);
+					DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+					continue;
 
+				}
 			}
-#endif
 		}
 		std::free(layerProperties);
 		layerProperties = NULL;

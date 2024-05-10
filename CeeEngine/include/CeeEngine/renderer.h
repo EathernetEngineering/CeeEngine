@@ -99,8 +99,6 @@ struct RendererCapabilities {
 	uint32_t maxFramesInFlight;
 
 	RendererMode rendererMode;
-
-	int32_t useRenderDocLayer;
 };
 
 class Renderer;
@@ -290,9 +288,15 @@ private:
 	friend Renderer;
 };
 
+struct RendererSpec {
+	MessageBus* msgBus;
+	std::shared_ptr<Window> window;
+	bool enableValidationLayers;
+};
+
 class Renderer {
 public:
-	Renderer(const RendererCapabilities& capabilities, std::shared_ptr<cee::Window> window);
+	Renderer(const RendererSpec& spec, const RendererCapabilities& capabilities);
 	~Renderer();
 
 	int Init();
@@ -403,6 +407,7 @@ public:
 
 private:
 	RendererCapabilities m_Capabilites;
+	bool m_EnableValidationLayers;
 
 	std::atomic<bool> m_Running;
 	bool m_InFrame;

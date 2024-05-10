@@ -12,7 +12,7 @@ public:
 	Renderer2D() = default;
 	virtual ~Renderer2D() = default;
 
-	static void Init(MessageBus* msgBus, std::shared_ptr<Window> window);
+	static void Init(const RendererSpec& spec);
 	static void Shutdown();
 
 	static void BeginFrame();

@@ -1,5 +1,6 @@
 #include "CeeEngine/assert.h"
 #include "CeeEngine/debugMessenger.h"
+#include "CeeEngine/renderer.h"
 #include <CeeEngine/application.h>
 #include <CeeEngine/input.h>
 #include <CeeEngine/renderer2D.h>
@@ -13,13 +14,14 @@
 namespace cee {
 Application* Application::s_Instance = nullptr;
 
-Application::Application()
+Application::Application(const ApplicationSpec& spec)
  : m_LayerStack(&m_MessageBus) {
 	if (s_Instance) {
 		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Application already exits...\tExiting...\t");
 		std::exit(EXIT_FAILURE);
 	}
 	s_Instance = this;
+	DebugMessenger::SetReportLevels(spec.messageLevels);
 
 	auto start = std::chrono::high_resolution_clock::now();
 
@@ -28,15 +30,23 @@ Application::Application()
 	m_LayerStack.PushLayer(m_DebugLayer);
 #endif
 
-	WindowSpecification windowSpec = {};
+	WindowSpec windowSpec = {};
 	windowSpec.width = 1280;
 	windowSpec.height = 720;
 	windowSpec.title = "CeeEngine Application";
-	m_Window = std::make_shared<Window>(&m_MessageBus, windowSpec);
+	windowSpec.msgBus = &m_MessageBus;
+	m_Window = std::make_shared<Window>(windowSpec);
+	
 	Input::Init(&m_MessageBus, m_Window);
-	if (Renderer3D::Init(&m_MessageBus, m_Window) != 0) {
+	
+	RendererSpec rendererSpec;
+	rendererSpec.window = m_Window;
+	rendererSpec.msgBus = &m_MessageBus;
+	rendererSpec.enableValidationLayers = spec.EnableValidation;
+	if (Renderer3D::Init(rendererSpec) != 0) {
 		CEE_ASSERT(false, "Failed to initialse Renderer3D");
 	}
+	
 	m_MessageBus.RegisterMessageHandler([this](Event& e){ (void)(this->OnEvent(e)); });
 
 	auto end = std::chrono::high_resolution_clock::now();

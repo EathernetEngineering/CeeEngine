@@ -11,7 +11,7 @@ public:
 	Renderer3D() = default;
 	virtual ~Renderer3D() = default;
 
-	static int32_t Init(MessageBus* msgBus, std::shared_ptr<Window> window);
+	static int32_t Init(const RendererSpec& spec);
 	static void Shutdown();
 
 	static void BeginFrame();

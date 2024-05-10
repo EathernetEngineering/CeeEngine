@@ -20,24 +20,26 @@ typedef xcb_connection_t NativeWindowConnection;
 typedef xcb_window_t NativeWindowHandle;
 #endif
 
-struct WindowSpecification {
+struct WindowSpec {
 	uint32_t width;
 	uint32_t height;
 
 	std::string title;
+
+	MessageBus* msgBus;
 };
 
 class Window {
 public:
-	Window(MessageBus* messageBus, const WindowSpecification& spec);
+	Window(const WindowSpec& spec);
 	~Window();
 
 	NativeWindowConnection* GetNativeConnection() const;
 	NativeWindowHandle GetNativeWindowHandle() const;
 
-	uint32_t GetWidth() const { return m_Specification.width; }
-	uint32_t GetHeight() const { return m_Specification.height; }
-	WindowSpecification GetWindowSepcification() const { return m_Specification; }
+	uint32_t GetWidth() const { return m_Spec.width; }
+	uint32_t GetHeight() const { return m_Spec.height; }
+	WindowSpec GetWindowSepcification() const { return m_Spec; }
 
 	void SetTitle(const std::string& title);
 	void SetWidth(uint32_t width);
@@ -57,7 +59,7 @@ private:
 										with a specific window. e.g. KeyPressEvent */
 	bool m_ShouldClose;
 
-	WindowSpecification m_Specification;
+	WindowSpec m_Spec;
 	NativeWindowHandle m_Wnd;
 
 #if defined(CEE_PLATFORM_LINUX)

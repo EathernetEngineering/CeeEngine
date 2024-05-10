@@ -14,9 +14,15 @@
 #include <memory>
 #include <thread>
 namespace cee {
+
+struct CEEAPI ApplicationSpec {
+	CeeErrorSeverity messageLevels = (CeeErrorSeverity)(ERROR_SEVERITY_WARNING | ERROR_SEVERITY_ERROR);
+	bool EnableValidation = false;
+};
+
 class CEEAPI Application {
 public:
-	Application();
+	Application(const ApplicationSpec& spec);
 	virtual ~Application();
 
 	void CEECALL Run();

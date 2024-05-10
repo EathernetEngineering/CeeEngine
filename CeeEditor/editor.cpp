@@ -1,3 +1,4 @@
+#include "CeeEngine/debugMessenger.h"
 #include <cstdio>
 
 #include <CeeEngine/application.h>
@@ -131,6 +132,9 @@ int main(int argc, char **argv) {
 #ifndef NDEBUG
 	mcheck(NULL);
 #endif
+	cee::ApplicationSpec appSpec;
+	appSpec.messageLevels = (cee::CeeErrorSeverity)(cee::ERROR_SEVERITY_WARNING | cee::ERROR_SEVERITY_ERROR);
+	appSpec.EnableValidation = false;
 
 	char c;
 	int32_t optionIndex;
@@ -147,11 +151,11 @@ int main(int argc, char **argv) {
 			break;
 
 		case 'v':
-			// TODO: enable verbose messaaging
+			appSpec.messageLevels = (cee::CeeErrorSeverity)(cee::ERROR_SEVERITY_DEBUG | cee::ERROR_SEVERITY_INFO | cee::ERROR_SEVERITY_WARNING | cee::ERROR_SEVERITY_ERROR);
 			break;
 
 		case 'V':
-			// TODO: enable validation layers
+			appSpec.EnableValidation = true;
 			break;
 
 			default:
@@ -162,7 +166,7 @@ int main(int argc, char **argv) {
 
 	cee::Application* app = nullptr;
 
-	app = new cee::Application;
+	app = new cee::Application(appSpec);
 
 	GameLayer* gameLayer = new GameLayer;
 	app->PushLayer(gameLayer);

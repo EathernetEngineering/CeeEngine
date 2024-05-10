@@ -6,15 +6,6 @@
 #include <vulkan/vulkan.h>
 
 namespace cee {
-/* Forward declerations. */
-class Application;
-class Window;
-class Renderer;
-class MessageBus;
-class DebugLayer;
-class Buffer;
-/* end forward declerations. */
-
 enum CeeErrorSeverity {
 	ERROR_SEVERITY_DEBUG    = 1 << 0,
 	ERROR_SEVERITY_INFO     = 1 << 1,
@@ -29,6 +20,7 @@ public:
 	static void RegisterDebugMessenger(CeeErrorSeverity messageTypes,
 									   void* userData,
 									   std::function<void(CeeErrorSeverity, const char*, void*)> callback);
+	static void SetReportLevels(CeeErrorSeverity levels) { s_ReportErrorLevels = levels; }
 
 private:
 	static void DefaultHandler(CeeErrorSeverity severity, const char* message, void*);
