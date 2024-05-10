@@ -4,6 +4,11 @@
 #include <CeeEngine/renderer3D.h>
 #include <CeeEngine/camera.h>
 
+#include <cstdlib>
+#include <locale.h>
+#include <unistd.h>
+#include <getopt.h>
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
 #include <chrono>
@@ -11,6 +16,32 @@
 #ifndef NDEBUG
 #include "mcheck.h"
 #endif
+
+static void PrintUsage(const char* command) {
+	fprintf(stdout, "Usage: CeeEditor %s [OPTION]...\n"
+		 "\n"
+		 "-h, --help       help\n"
+		 "    --version    print current version\n"
+		 "-v, --verbose    show all messages\n"
+		 "-V, --validation enable validation layers\n",
+		 command);
+}
+
+static void PrintVersion(const char* command) {
+	fprintf(stdout, "%s: version 1.0.0 by Chloe Eather\n", command);
+}
+
+enum {
+	OPT_VERSION = 1
+};
+
+static const char shortOptions[] = "hvV";
+static const option longOptions[] = {
+	{ "help", 0, 0, 'h' },
+	{ "version", 0, 0, OPT_VERSION },
+	{ "verbose", 0, 0, 'v' },
+	{ "validation", 0, 0, 'V' }
+};
 
 class GameLayer : public cee::Layer {
 public:
@@ -100,8 +131,35 @@ int main(int argc, char **argv) {
 #ifndef NDEBUG
 	mcheck(NULL);
 #endif
-	(void)argc;
-	(void)argv;
+
+	char c;
+	int32_t optionIndex;
+	while ((c = getopt_long(argc, argv, shortOptions, longOptions, &optionIndex)) != -1) {
+		switch (c) {
+		case 'h':
+			PrintUsage(argv[0]);
+			exit(EXIT_SUCCESS);
+			break;
+
+		case OPT_VERSION:
+			PrintVersion(argv[0]);
+			exit(EXIT_SUCCESS);
+			break;
+
+		case 'v':
+			// TODO: enable verbose messaaging
+			break;
+
+		case 'V':
+			// TODO: enable validation layers
+			break;
+
+			default:
+			fprintf(stderr, "Unknown option \"%c\"\nTry \"%s --help\" for more information.", c, argv[0]);
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	cee::Application* app = nullptr;
 
 	app = new cee::Application;
