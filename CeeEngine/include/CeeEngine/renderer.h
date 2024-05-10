@@ -101,6 +101,33 @@ struct RendererCapabilities {
 	RendererMode rendererMode;
 };
 
+enum CommandQueueTypeBits
+{
+	QUEUE_UNKNOWN  = 0,
+	QUEUE_TRANSFER = 1,
+	QUEUE_GRAPHICS = 2,
+	QUEUE_COMPUTE  = 3
+};
+typedef uint8_t CommandQueueType;
+
+struct RawCommandBuffer {
+	VkCommandBuffer commandBuffer;
+	CommandQueueType queueType;
+};
+
+struct BakedCommandBuffer {
+	VkCommandBuffer commandBuffer;
+	CommandQueueType queueType;
+	std::vector<VkSemaphore> signalSemaphores;
+	std::vector<std::pair<VkPipelineStageFlags, VkSemaphore>> waitSemaphores;
+};
+
+struct UsedCommandBuffer {
+	VkCommandBuffer commandBuffer;
+	CommandQueueType queueType;
+	uint32_t age;
+};
+
 class Renderer;
 class StagingBuffer;
 
@@ -185,7 +212,7 @@ public:
 	void Clear(glm::vec4 clearColor);
 
 private:
-	void TransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout);
+	void TransitionLayout(RawCommandBuffer& cmdBuffer, VkImageLayout newLayout);
 
 private:
 	bool m_Initialized;
@@ -220,7 +247,7 @@ public:
 	void Clear(glm::vec4 clearColor);
 
 private:
-	void TransitionLayout(VkCommandBuffer cmdBuffer, VkImageLayout newLayout);
+	void TransitionLayout(RawCommandBuffer& cmdBuffer, VkImageLayout newLayout);
 
 private:
 	bool m_Initialized;
@@ -325,36 +352,17 @@ public:
 	VkFormat GetSwapchainFormat() const { return m_SwapchainImageFormat; }
 	VkExtent2D GetSwapchainExtent() const { return m_SwapchainExtent; }
 
+	uint32_t GetQueueFamilyIndex(CommandQueueType queueType) const;
+
 private:
 	void InvalidateSwapchain();
 	void InvalidatePipeline();
 
 public:
-	enum CommandQueueTypeBits
-	{
-		QUEUE_UNKNOWN  = 0,
-		QUEUE_TRANSFER = 1,
-		QUEUE_GRAPHICS = 2,
-		QUEUE_COMPUTE  = 3
-	};
-	typedef uint8_t CommandQueueType;
-
-	struct BakedCommandBuffer {
-		VkCommandBuffer commandBuffer;
-		CommandQueueType queueType;
-		std::vector<VkSemaphore> signalSemaphores;
-		std::vector<std::pair<VkPipelineStageFlags, VkSemaphore>> waitSemaphores;
-	};
-
-	struct UsedCommandBuffer {
-		VkCommandBuffer commandBuffer;
-		CommandQueueType queueType;
-		uint32_t age;
-	};
 
 public:
-	VkResult ImmediateSubmit(std::function<void(VkCommandBuffer&)> fn, CommandQueueType queueType);
-	VkResult QueueSubmit(std::function<void(VkCommandBuffer&)> fn, CommandQueueType queueType);
+	VkResult ImmediateSubmit(std::function<void(RawCommandBuffer&)> fn, CommandQueueType queueType);
+	VkResult QueueSubmit(std::function<void(RawCommandBuffer&)> fn, CommandQueueType queueType);
 	VkResult FlushQueuedSubmits();
 	VkCommandBuffer StartCommandBuffer(CommandQueueType queueType);
 	VkResult SubmitCommandBufferNow(VkCommandBuffer commandBuffer, CommandQueueType queueType);
