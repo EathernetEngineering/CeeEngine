@@ -20,11 +20,8 @@
 #if defined(CEE_ENABLE_ASSERT)
 #	define CEE_ASSERT(x, msg) do { \
 		if (!(x)) { \
-			char message[4096]; \
-			sprintf(message, "Assertion \"%s\" failed %s:%u", #x, __FILE__, __LINE__); \
-			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, message); \
-			sprintf(message, "Message:%s", #msg); \
-			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, message); \
+			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, "Assertion \"%s\" failed %s:%u", #x, __FILE__, __LINE__); \
+			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, "Message: %s", #msg); \
 			CEE_DEBUG_BREAK(); \
 		} \
 	} while (0)
@@ -35,11 +32,8 @@
 #if defined(CEE_ENABLE_VERIFY)
 #	define CEE_VERIFY(x, msg) do { \
 	if (!(x)) { \
-			char message[4096]; \
-			sprintf(message, "Assertion \"%s\" failed %s:%u", #x, __FILE__, __LINE__); \
-			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, message); \
-			sprintf(message, "Message:%s", #msg); \
-			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, message); \
+			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, "Assertion \"%s\" failed %s:%u", #x, __FILE__, __LINE__); \
+			::cee::DebugMessenger::PostDebugMessage(::cee::ERROR_SEVERITY_ERROR, "Message: %s", #msg); \
 			CEE_DEBUG_BREAK(); \
 		} \
 	} while (0)

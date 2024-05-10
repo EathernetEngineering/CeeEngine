@@ -4,10 +4,11 @@
 #include <CeeEngine/assert.h>
 
 #include <csignal>
+#include <cstdint>
 #include <cstdlib>
-#include <cstdio>
 #include <cstring>
 
+#include <limits>
 #include <vector>
 #include <set>
 #include <algorithm>
@@ -133,7 +134,6 @@ VkBool32 Renderer::VulkanDebugMessengerCallback(VkDebugUtilsMessageSeverityFlagB
 			strcat(messageTypeName, ",");
 		strcat(messageTypeName, "PERFORMANCE");
 	}
-	char message[4096];
 	CeeErrorSeverity ceeMessageSeverity;
 	switch (messageSeverity) {
 		case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
@@ -150,12 +150,10 @@ VkBool32 Renderer::VulkanDebugMessengerCallback(VkDebugUtilsMessageSeverityFlagB
 			break;
 
 		default:
-			sprintf(message, "[%s] Unknown error severity.\tMessage: %s", messageTypeName, messageData->pMessage);
-			cee::DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, message);
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "[%s] Unknown error severity.\tMessage: %s", messageTypeName, messageData->pMessage);
 			return VK_FALSE;
 	}
-	sprintf(message, "[%s] %s", messageTypeName, messageData->pMessage);
-	cee::DebugMessenger::PostDebugMessage(ceeMessageSeverity, message);
+	DebugMessenger::PostDebugMessage(ceeMessageSeverity, "[%s] %s", messageTypeName, messageData->pMessage);
 	(void)userData;
 	return VK_FALSE;
 }
@@ -958,7 +956,7 @@ Renderer::Renderer(const RendererSpec& spec, const RendererCapabilities& capabil
    m_LinePipeline(VK_NULL_HANDLE), m_ActivePipeline(m_MainPipeline), m_PresentQueue(VK_NULL_HANDLE),
    m_GraphicsQueue(VK_NULL_HANDLE), m_TransferQueue(VK_NULL_HANDLE),
    m_GraphicsCmdPool(VK_NULL_HANDLE), m_TransferCmdPool(VK_NULL_HANDLE),
-   m_DebugMessenger(VK_NULL_HANDLE)
+   m_ImageIndex(0), m_FrameIndex(0), m_QueueSubmissionIndex(0), m_DebugMessenger(VK_NULL_HANDLE)
 {
 	m_Running = false;
 }
@@ -1034,9 +1032,7 @@ int Renderer::Init()
 			if (m_EnableValidationLayers) {
 				if (strcmp(layerProperties[i].layerName, "VK_LAYER_KHRONOS_validation") == 0) {
 					enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
-					char message[512];
-					sprintf(message, "Using Vulkan layer %s.", layerProperties[i].layerName);
-					DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+					DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Using Vulkan layer %s.", layerProperties[i].layerName);
 					continue;
 
 				}
@@ -1069,24 +1065,18 @@ int Renderer::Init()
 		for (uint32_t i = 0; i < extensionPropertiesCount; i++) {
 			if (strcmp(VK_KHR_SURFACE_EXTENSION_NAME, extensionProperties[i].extensionName) == 0) {
 				enabledExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-				char message[512];
-				sprintf(message, "Using Vulkan extension %s.", extensionProperties[i].extensionName);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Using Vulkan extension %s.", extensionProperties[i].extensionName);
 				continue;
 			}
 			if (strcmp(surfaceExtensionName, extensionProperties[i].extensionName) == 0) {
 				enabledExtensions.push_back(surfaceExtensionName);
-				char message[512];
-				sprintf(message, "Using Vulkan extension %s.", extensionProperties[i].extensionName);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Using Vulkan extension %s.", extensionProperties[i].extensionName);
 				continue;
 			}
 #ifndef NDEBUG
 			if (strcmp(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, extensionProperties[i].extensionName) == 0) {
 				enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-				char message[512];
-				sprintf(message, "Using Vulkan extension %s.", extensionProperties[i].extensionName);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Using Vulkan extension %s.", extensionProperties[i].extensionName);
 				continue;
 			}
 #endif
@@ -1170,20 +1160,15 @@ int Renderer::Init()
 		vkGetPhysicalDeviceProperties(m_PhysicalDevice, &m_PhysicalDeviceProperties);
 		vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &m_PhysicalDeviceMemoryProperties);
 
-		char message[4096];
 		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Phsysical device properties:");
-		sprintf(message, "\tDevice Name: %s", m_PhysicalDeviceProperties.deviceName);
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
-		sprintf(message, "\tVendor Id: %u", m_PhysicalDeviceProperties.vendorID);
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
-		sprintf(message, "\tDiscrete: %s", &"false\0true"[6*(m_PhysicalDeviceProperties.deviceType ==
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "\tDevice Name: %s", m_PhysicalDeviceProperties.deviceName);
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "\tVendor Id: %u", m_PhysicalDeviceProperties.vendorID);
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "\tDiscrete: %s", &"false\0true"[6*(m_PhysicalDeviceProperties.deviceType ==
 				VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)]);
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
-		sprintf(message, "\tAPI Version: %u.%u.%u",
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "\tAPI Version: %u.%u.%u",
 				(m_PhysicalDeviceProperties.apiVersion & 0x1FC00000) >> 22,
 				(m_PhysicalDeviceProperties.apiVersion & 0x3FF000) >> 12,
 				(m_PhysicalDeviceProperties.apiVersion & 0xFFF));
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
 
 	}
 	{
@@ -1267,43 +1252,25 @@ int Renderer::Init()
 			m_QueueFamilyIndices.transferIndex.has_value() &&
 			m_QueueFamilyIndices.presentIndex.has_value()))
 		{
-			char message[512];
 			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Queue family without value.");
-			sprintf(message, "\tPresent Queue index: %u", m_QueueFamilyIndices.presentIndex.value_or(-1));
-			DebugMessenger::PostDebugMessage(
-				m_QueueFamilyIndices.presentIndex.value_or(-1) == -1u ?
-				ERROR_SEVERITY_ERROR : ERROR_SEVERITY_DEBUG,
-				message);
-			sprintf(message, "\tGraphics Queue index: %u", m_QueueFamilyIndices.graphicsIndex.value_or(-1));
-			DebugMessenger::PostDebugMessage(
-				m_QueueFamilyIndices.graphicsIndex.value_or(-1) == -1u ?
-				ERROR_SEVERITY_ERROR : ERROR_SEVERITY_DEBUG,
-				message);
-			sprintf(message, "\tCompute Queue index: %u", m_QueueFamilyIndices.computeIndex.value_or(-1));
-			DebugMessenger::PostDebugMessage(
-				m_QueueFamilyIndices.computeIndex.value_or(-1) == -1u ?
-				ERROR_SEVERITY_ERROR : ERROR_SEVERITY_DEBUG,
-				message);
-			sprintf(message, "\tTransfer Queue index: %u", m_QueueFamilyIndices.transferIndex.value_or(-1));
-			DebugMessenger::PostDebugMessage(
-				m_QueueFamilyIndices.transferIndex.value_or(-1) == -1u ?
-				ERROR_SEVERITY_ERROR : ERROR_SEVERITY_DEBUG,
-				message);
+			DebugMessenger::PostDebugMessage(m_QueueFamilyIndices.presentIndex.has_value() ? ERROR_SEVERITY_DEBUG : ERROR_SEVERITY_ERROR,
+									"\tPresent Queue index: %u", m_QueueFamilyIndices.presentIndex.value_or(-1));
+			DebugMessenger::PostDebugMessage(m_QueueFamilyIndices.graphicsIndex.has_value() ? ERROR_SEVERITY_DEBUG : ERROR_SEVERITY_ERROR,
+									"\tGraphics Queue index: %u", m_QueueFamilyIndices.graphicsIndex.value_or(-1));
+			DebugMessenger::PostDebugMessage(m_QueueFamilyIndices.computeIndex.has_value() ? ERROR_SEVERITY_DEBUG : ERROR_SEVERITY_ERROR,
+									"\tCompute Queue index: %u", m_QueueFamilyIndices.computeIndex.value_or(-1));
+			DebugMessenger::PostDebugMessage(m_QueueFamilyIndices.transferIndex.has_value() ? ERROR_SEVERITY_DEBUG : ERROR_SEVERITY_ERROR,
+									"\tTransfer Queue index: %u", m_QueueFamilyIndices.transferIndex.value_or(-1));
 		} else {
-			char message[512];
 			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Using queue families:");
-			sprintf(message, "\tPresent Queue index: %u",
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "\tPresent Queue index: %u",
 					m_QueueFamilyIndices.presentIndex.value_or(VK_QUEUE_FAMILY_IGNORED));
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
-			sprintf(message, "\tGraphics Queue index: %u",
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "\tGraphics Queue index: %u",
 					m_QueueFamilyIndices.graphicsIndex.value_or(VK_QUEUE_FAMILY_IGNORED));
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
-			sprintf(message, "\tCompute Queue index: %u",
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "\tCompute Queue index: %u",
 					m_QueueFamilyIndices.computeIndex.value_or(VK_QUEUE_FAMILY_IGNORED));
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
-			sprintf(message, "\tTransfer Queue index: %u",
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "\tTransfer Queue index: %u",
 					m_QueueFamilyIndices.transferIndex.value_or(VK_QUEUE_FAMILY_IGNORED));
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
 		}
 	}
 	{
@@ -1330,9 +1297,7 @@ int Renderer::Init()
 		for (uint32_t i = 0; i < extensionPropertiesCount; i++) {
 			if (strcmp(VK_KHR_SWAPCHAIN_EXTENSION_NAME, extensionProperties[i].extensionName) == 0) {
 				enabledExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-				char message[512];
-				sprintf(message, "Using device extension: %s", extensionProperties[i].extensionName);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO, message);
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO, "Using device extension: %s", extensionProperties[i].extensionName);
 				continue;
 			}
 		}
@@ -2122,9 +2087,7 @@ int Renderer::Init()
 			VkFramebuffer framebuffer;
 			result = vkCreateFramebuffer(m_Device, &framebufferCreateInfo, NULL, &framebuffer);
 			if (result != VK_SUCCESS) {
-				char message[128];
-				sprintf(message, "Failed to create framebuffer %u.", i);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, message);
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to create framebuffer %u.", i);
 				return -1;
 			}
 			m_Framebuffers.push_back(framebuffer);
@@ -2185,9 +2148,7 @@ int Renderer::Init()
 			VkSemaphore semaphore = VK_NULL_HANDLE;
 			result = vkCreateSemaphore(m_Device, &semaphoreCreateInfo, NULL, &semaphore);
 			if (result != VK_SUCCESS) {
-				char message[128];
-				sprintf(message, "Failed to create image available semaphore %u.", i);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, message);
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to create image available semaphore %u.", i);
 				return -1;
 			}
 			m_ImageAvailableSemaphores.push_back(semaphore);
@@ -2195,9 +2156,7 @@ int Renderer::Init()
 			semaphore = VK_NULL_HANDLE;
 			result = vkCreateSemaphore(m_Device, &semaphoreCreateInfo, NULL, &semaphore);
 			if (result != VK_SUCCESS) {
-				char message[128];
-				sprintf(message, "Failed to render finished semaphore %u.", i);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, message);
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to render finished semaphore %u.", i);
 				return -1;
 			}
 			m_RenderFinishedSemaphores.push_back(semaphore);
@@ -2205,19 +2164,31 @@ int Renderer::Init()
 			VkFenceCreateInfo fenceCreateInfo = {};
 			fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 			fenceCreateInfo.pNext = NULL;
-			fenceCreateInfo.flags = 0;
-
-			VkFence fence = VK_NULL_HANDLE;
 			fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-			fence = VK_NULL_HANDLE;
-			result = vkCreateFence(m_Device, &fenceCreateInfo, NULL, &fence);
+
+			VkFence inFlightFence = VK_NULL_HANDLE;
+			VkFence graphicsQueueFence = VK_NULL_HANDLE;
+			VkFence transferQueueFence = VK_NULL_HANDLE;
+			result = vkCreateFence(m_Device, &fenceCreateInfo, NULL, &inFlightFence);
 			if (result != VK_SUCCESS) {
-				char message[128];
-				sprintf(message, "Failed to create in flight fence %u.", i);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, message);
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to create in flight fence %u.", i);
 				return -1;
 			}
-			m_InFlightFences.push_back(fence);
+			m_InFlightFences.push_back(inFlightFence);
+
+			result = vkCreateFence(m_Device, &fenceCreateInfo, NULL, &graphicsQueueFence);
+			if (result != VK_SUCCESS) {
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to create in flight fence %u.", i);
+				return -1;
+			}
+			m_GraphicsQueueFences.push_back(graphicsQueueFence);
+
+			result = vkCreateFence(m_Device, &fenceCreateInfo, NULL, &transferQueueFence);
+			if (result != VK_SUCCESS) {
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to create in flight fence %u.", i);
+				return -1;
+			}
+			m_TransferQueueFences.push_back(transferQueueFence);
 		}
 	}
 	{
@@ -2746,6 +2717,12 @@ void Renderer::Shutdown()
 	vkDestroyDescriptorSetLayout(m_Device, m_SkyboxDescriptorSetLayout, NULL);
 	vkFreeCommandBuffers(m_Device, m_GraphicsCmdPool, m_SkyboxDrawCommandBuffers.size(), m_SkyboxDrawCommandBuffers.data());
 	m_Running.store(false, std::memory_order_relaxed);
+	for (auto& fence : m_TransferQueueFences) {
+		vkDestroyFence(m_Device, fence, NULL);
+	}
+	for (auto& fence : m_GraphicsQueueFences) {
+		vkDestroyFence(m_Device, fence, NULL);
+	}
 	for (auto& fence : m_InFlightFences) {
 		vkDestroyFence(m_Device, fence, NULL);
 	}
@@ -3355,9 +3332,7 @@ void Renderer::InvalidateSwapchain() {
 			VkFramebuffer framebuffer = VK_NULL_HANDLE;
 			result = vkCreateFramebuffer(m_Device, &framebufferCreateInfo, NULL, &framebuffer);
 			if (result != VK_SUCCESS) {
-				char message[128];
-				sprintf(message, "Failed to create framebuffer %u.", i);
-				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, message);
+				DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to create framebuffer %u.", i);
 				return;
 			}
 			m_Framebuffers.push_back(framebuffer);
@@ -3535,6 +3510,16 @@ VkResult Renderer::FlushQueuedSubmits() {
 		}
 	}
 
+	VkFence waitFences[] = {
+		m_GraphicsQueueFences[m_QueueSubmissionIndex],
+		m_TransferQueueFences[m_QueueSubmissionIndex]
+	};
+	vkWaitForFences(m_Device, 2, waitFences, VK_TRUE, std::numeric_limits<uint64_t>::max());
+	result = vkResetFences(m_Device, 2, waitFences);
+	if (result != VK_SUCCESS) {
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to reset fences for submission queue.");
+	}
+
 	VkSubmitInfo transferCommandBufferSubmitInfo = {};
 	transferCommandBufferSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	transferCommandBufferSubmitInfo.pNext = NULL;
@@ -3546,7 +3531,7 @@ VkResult Renderer::FlushQueuedSubmits() {
 	transferCommandBufferSubmitInfo.pWaitSemaphores = NULL;
 	transferCommandBufferSubmitInfo.pWaitDstStageMask = NULL;
 
-	result = vkQueueSubmit(m_TransferQueue, 1, &transferCommandBufferSubmitInfo, VK_NULL_HANDLE);
+	result = vkQueueSubmit(m_TransferQueue, 1, &transferCommandBufferSubmitInfo, m_TransferQueueFences[m_QueueSubmissionIndex]);
 	if (result != VK_SUCCESS) {
 		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
 										 "Failed to submit immedate command buffer.");
@@ -3564,7 +3549,7 @@ VkResult Renderer::FlushQueuedSubmits() {
 	graphicsCommandBufferSubmitInfo.pWaitSemaphores = NULL;
 	graphicsCommandBufferSubmitInfo.pWaitDstStageMask = NULL;
 
-	result = vkQueueSubmit(m_GraphicsQueue, 1, &graphicsCommandBufferSubmitInfo, VK_NULL_HANDLE);
+	result = vkQueueSubmit(m_GraphicsQueue, 1, &graphicsCommandBufferSubmitInfo, m_GraphicsQueueFences[m_QueueSubmissionIndex]);
 	if (result != VK_SUCCESS) {
 		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR,
 										 "Failed to submit immedate command buffer.");
@@ -3576,15 +3561,15 @@ VkResult Renderer::FlushQueuedSubmits() {
 	std::vector<VkCommandBuffer> finishedGraphicsCommandBuffers;
 	auto it = m_CommandBufferDeletionQueue.begin();
 	while (it != m_CommandBufferDeletionQueue.end()) {
-		if ((*it).age > m_Capabilites.maxFramesInFlight) {
+		if (it->age > (m_Capabilites.maxFramesInFlight)) {
 			if ((*it).queueType == QUEUE_TRANSFER) {
-				finishedTransferCommandBuffers.push_back((*it).commandBuffer);
+				finishedTransferCommandBuffers.push_back(it->commandBuffer);
 			} else if ((*it).queueType == QUEUE_GRAPHICS) {
-				finishedGraphicsCommandBuffers.push_back((*it).commandBuffer);
+				finishedGraphicsCommandBuffers.push_back(it->commandBuffer);
 			}
 			it = m_CommandBufferDeletionQueue.erase(it);
 		} else {
-			(*it).age++;
+			it->age++;
 			it++;
 		}
 	}
@@ -3601,6 +3586,9 @@ VkResult Renderer::FlushQueuedSubmits() {
 	for (auto& commandBuffer : graphicsCommandBuffers) {
 		m_CommandBufferDeletionQueue.push_back({ commandBuffer, QUEUE_GRAPHICS, 0 });
 	}
+
+	m_QueueSubmissionIndex++;
+	m_QueueSubmissionIndex %= m_Capabilites.maxFramesInFlight;
 
 	return result;
 }

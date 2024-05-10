@@ -494,6 +494,8 @@ private:
 	std::vector<VkSemaphore> m_RenderFinishedSemaphores;
 	std::vector<VkSemaphore> m_TransferFinishedSemaphores;
 	std::vector<VkFence> m_InFlightFences;
+	std::vector<VkFence> m_GraphicsQueueFences;
+	std::vector<VkFence> m_TransferQueueFences;
 
 	glm::vec4 m_ClearColor;
 	ImageBuffer m_ImageBuffer;
@@ -512,6 +514,7 @@ private:
 
 	uint32_t m_ImageIndex;
 	uint32_t m_FrameIndex;
+	uint32_t m_QueueSubmissionIndex;
 
 	friend VkBool32 vulkanDebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 								  VkDebugUtilsMessageTypeFlagsEXT messageType,

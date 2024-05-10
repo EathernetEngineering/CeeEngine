@@ -1,7 +1,5 @@
 #include <CeeEngine/debugMessenger.h>
 
-#include <cstdio>
-
 namespace cee {
 std::function<void(CeeErrorSeverity, const char*, void*)> DebugMessenger::s_Messenger = DebugMessenger::DefaultHandler;
 void* DebugMessenger::s_UserData = NULL;
@@ -38,13 +36,6 @@ void DebugMessenger::DefaultHandler(CeeErrorSeverity severity, const char* messa
 		default:
 			fprintf(stderr, "\e[0;33m[WARN]  An unknown error has occured.\e[0m\n");
 			fprintf(stderr, "\e[0;31m[ERROR] %s\e[0m\n", message);
-	}
-}
-
-void DebugMessenger::PostDebugMessage(cee::CeeErrorSeverity serverity, const char* message)
-{
-	if (serverity & s_ReportErrorLevels) {
-		s_Messenger(serverity, message, s_UserData);
 	}
 }
 }

@@ -1,7 +1,11 @@
 #ifndef CEE_ENGINE_DEBUG_MESSENGER_H
 #define CEE_ENGINE_DEBUG_MESSENGER_H
 
+#include <cstdlib>
 #include <functional>
+
+#include <utility>
+#include <cstdio>
 
 #include <vulkan/vulkan.h>
 
@@ -36,7 +40,16 @@ private:
 												 void* userData);
 
 public:
-	static void PostDebugMessage(CeeErrorSeverity serverity, const char* message);
+	template<typename... Args>
+	static void PostDebugMessage(CeeErrorSeverity serverity, const char* fmt, Args&&... args)
+	{
+		if (serverity & s_ReportErrorLevels) {
+			size_t messageLen = snprintf(nullptr, 0, fmt, std::forward<Args>(args)...);
+			char* message = reinterpret_cast<char*>(malloc(messageLen + 1));
+			snprintf(message, messageLen + 1, fmt, std::forward<Args>(args)...);
+			s_Messenger(serverity, message, s_UserData);
+		}
+	}
 };
 }
 

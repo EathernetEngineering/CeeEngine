@@ -14,15 +14,13 @@ namespace cee {
 AssetManager::AssetManager(std::filesystem::path basePath) {
 	if (basePath.empty()) {
 		if (!HasEnvironmentVariable(ASSET_PATH_ENV_VAR)) {
-			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO, "No asset filepath selected, using default: " DEFAULT_ASSET_PATH ".");
+			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_INFO, "No asset filepath selected, using default: %s.", DEFAULT_ASSET_PATH);
 			SetEnvironmentVariable(ASSET_PATH_ENV_VAR, DEFAULT_ASSET_PATH);
 		}
 		basePath = GetEnvironmentVariable(ASSET_PATH_ENV_VAR);
 	}
 	if (!std::filesystem::exists(basePath)) {
-		char str[FILENAME_MAX];
-		sprintf(str, "Failed to set asset root path. File \"%s\" does not exist.", basePath.c_str());
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, str);
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to set asset root path. File \"%s\" does not exist.", basePath.c_str());
 		return;
 	}
 	m_Path = basePath;
@@ -34,9 +32,7 @@ bool AssetManager::Exists(std::filesystem::path filePath) {
 
 void AssetManager::SetAssetRoot(std::filesystem::path rootPath) {
 	if (!std::filesystem::exists(rootPath)) {
-		char str[FILENAME_MAX];
-		sprintf(str, "Failed to set asset root path. File \"%s\" does not exist.", rootPath.c_str());
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, str);
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to set asset root path. File \"%s\" does not exist.", rootPath.c_str());
 		return;
 	}
 	m_Path = rootPath;
@@ -68,7 +64,7 @@ std::shared_ptr<ShaderBinary> AssetManager::LoadAsset<ShaderBinary>(std::filesys
 
 	shaderFile->read(reinterpret_cast<char*>(shaderBinary->spvCode.data()), fileSize);
 	if (!shaderFile->good()) {
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to read file \"%s\".");
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to read file \"%s\".", filePath.c_str());
 		return std::shared_ptr<ShaderBinary>(nullptr);
 	}
 
@@ -89,7 +85,7 @@ std::shared_ptr<ShaderCode> AssetManager::LoadAsset<ShaderCode>(std::filesystem:
 
 	shaderFile->read(reinterpret_cast<char*>(shaderCode->glslCode.data()), fileSize);
 	if (!shaderFile->good()) {
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to read file \"%s\".");
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to read file \"%s\".", filePath.c_str());
 		return std::shared_ptr<ShaderCode>(nullptr);
 	}
 
@@ -111,7 +107,7 @@ std::shared_ptr<PipelineCache> AssetManager::LoadAsset<PipelineCache>(std::files
 
 	file->read(reinterpret_cast<char*>(pipelineCache->data.data()), fileSize);
 	if (!file->good()) {
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to read file \"%s\".");
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to read file \"%s\".", filePath.c_str());
 		return std::shared_ptr<PipelineCache>(nullptr);
 	}
 
@@ -130,7 +126,7 @@ std::shared_ptr<Image> AssetManager::LoadAsset<Image>(std::filesystem::path file
 	auto image = std::make_shared<Image>();
 	image->pixels = stbi_load(filePath.c_str(), &image->width, &image->height, nullptr, 4);
 	if (image->pixels == nullptr) {
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to load image \"%s\".");
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to load image \"%s\".", filePath.c_str());
 		return std::shared_ptr<Image>(nullptr);
 	}
 	image->channels = 4;
@@ -145,7 +141,7 @@ void AssetManager::SaveAsset<PipelineCache>(const std::filesystem::path filePath
 
 	file->write(reinterpret_cast<char*>(asset->data.data()), asset->data.size());
 	if (!file->good()) {
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to write to file \"%s\".");
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to write to file \"%s\".", filePath.c_str());
 	}
 
 	file->close();
@@ -154,12 +150,12 @@ void AssetManager::SaveAsset<PipelineCache>(const std::filesystem::path filePath
 std::optional<std::ifstream> AssetManager::OpenFileR(std::filesystem::path filePath) {
 	filePath = m_Path / filePath;
 	if (!Exists(filePath)) {
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "File \"%s\" does not exist.");
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "File \"%s\" does not exist.", filePath.c_str());
 		return std::nullopt;
 	}
 	std::ifstream file(filePath, std::ios::binary | std::ios::ate);
 	if (!file.is_open()) {
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to open file \"%s\".");
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to open file \"%s\".", filePath.c_str());
 		return std::nullopt;
 	}
 	return std::optional<std::ifstream>{std::move(file)};
@@ -168,12 +164,12 @@ std::optional<std::ifstream> AssetManager::OpenFileR(std::filesystem::path fileP
 std::optional<std::ofstream> AssetManager::OpenFileW(std::filesystem::path filePath) {
 	filePath = m_Path / filePath;
 	if (!Exists(filePath)) {
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "File \"%s\" does not exist.");
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "File \"%s\" does not exist.", filePath.c_str());
 		return std::nullopt;
 	}
 	std::ofstream file(filePath, std::ios::binary);
 	if (!file.is_open()) {
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to open file \"%s\".");
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_WARNING, "Failed to open file \"%s\".", filePath.c_str());
 		return std::nullopt;
 	}
 	return std::optional<std::ofstream>{std::move(file)};

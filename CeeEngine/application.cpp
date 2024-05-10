@@ -6,7 +6,6 @@
 #include <CeeEngine/renderer2D.h>
 #include <CeeEngine/renderer3D.h>
 
-#include <cstdio>
 #include <cstring>
 
 #include <chrono>
@@ -51,9 +50,7 @@ Application::Application(const ApplicationSpec& spec)
 
 	auto end = std::chrono::high_resolution_clock::now();
 	float duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0f;
-	char message[FILENAME_MAX];
-	sprintf(message, "Time to initialise engine: %.3fms", duration);
-	DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+	DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, "Time to initialise engine: %.3fms", duration);
 }
 
 Application::~Application() {

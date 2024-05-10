@@ -54,18 +54,14 @@ Window::Window(const WindowSpec& spec)
 	m_WmProtocolsCookie = xcb_intern_atom(s_Connection, 1, 12, "WM_PROTOCOLS");
 	m_WmProtocolsReply = xcb_intern_atom_reply(s_Connection, m_WmProtocolsCookie, &error);
 	if (error) {
-		char message[256];
-		sprintf(message, "XCB Error code from cookie \"WM_PROTOCOLS\": %hhu", error->error_code);
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "XCB Error code from cookie \"WM_PROTOCOLS\": %hhu", error->error_code);
 		free(error);
 	}
 	error = NULL;
 	m_WmDeleteCookie = xcb_intern_atom(s_Connection, 0, 16, "WM_DELETE_WINDOW");
 	m_WmDeleteReply = xcb_intern_atom_reply(s_Connection, m_WmDeleteCookie, &error);
 	if (error) {
-		char message[256];
-		sprintf(message, "XCB Error code from cookie \"WM_DELETE_WINDOW\": %hhu", error->error_code);
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, message);
+		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "XCB Error code from cookie \"WM_DELETE_WINDOW\": %hhu", error->error_code);
 		free(error);
 	}
 
@@ -93,9 +89,6 @@ Window::Window(const WindowSpec& spec)
 	xcb_get_geometry_cookie_t geometryCookie = xcb_get_geometry(s_Connection, m_Wnd);
 	xcb_get_geometry_reply_t* geometryReply = xcb_get_geometry_reply(s_Connection, geometryCookie, NULL);
 	if (geometryReply) {
-		char message[512];
-		sprintf(message, "Actual window size: %hux%hu\tRequested window size: %ux%u", geometryReply->width, geometryReply->height, m_Spec.width, m_Spec.height);
-		DebugMessenger::PostDebugMessage(ERROR_SEVERITY_DEBUG, message);
 		m_Spec.width = geometryReply->width;
 		m_Spec.height = geometryReply->height;
 		free(geometryReply);
