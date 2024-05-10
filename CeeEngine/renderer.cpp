@@ -2144,6 +2144,7 @@ int Renderer::Init()
 		}
 
 		cmdPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+		cmdPoolCreateInfo.queueFamilyIndex = m_QueueFamilyIndices.transferIndex.value();
 		result = vkCreateCommandPool(m_Device, &cmdPoolCreateInfo, NULL, &m_TransferCmdPool);
 		if (result != VK_SUCCESS) {
 			DebugMessenger::PostDebugMessage(ERROR_SEVERITY_ERROR, "Failed to create transfer command pool.");
